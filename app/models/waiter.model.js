@@ -17,6 +17,11 @@ const waiterSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  shift: {
+    type: String,
+    enum: ['mañana', 'tarde'],
+    required: true,
+  },
 });
 
 export const Waiter = mongoose.model('Waiter', waiterSchema);

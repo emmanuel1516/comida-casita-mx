@@ -48,7 +48,17 @@ const orderSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    customerPhone: {
+      type: String,
+      trim: true,
+      default: "",
+    },
     deliveryAddress: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    specialNotes: {
       type: String,
       trim: true,
       default: "",
@@ -56,26 +66,34 @@ const orderSchema = new mongoose.Schema(
     waiter: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Waiter",
-      default: null,
+      required: true,
     },
     items: {
       type: [orderItemSchema],
       required: true,
-      validate: [(value) => value.length > 0, "The order must have at least one item"],
+      validate: [
+        (value) => value.length > 0,
+        "El pedido debe tener al menos un ítem",
+      ],
     },
     status: {
       type: String,
-      enum: ["pendiente", "en_preparacion", "listo", "entregado"],
+      enum: ["pendiente", "preparando", "listo", "entregado"],
       default: "pendiente",
     },
     shift: {
       type: String,
-      enum: ["mañana", "tarde", "noche"],
+      enum: ["mañana", "tarde"],
       required: true,
     },
     total: {
       type: Number,
       required: true,
+      min: 0,
+    },
+    tip: {
+      type: Number,
+      default: 0,
       min: 0,
     },
   },
