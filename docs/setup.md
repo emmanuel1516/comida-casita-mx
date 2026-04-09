@@ -5,7 +5,7 @@
 ## Backend
 - cd app
 - npm init -y (inicializa el proyecto Node.js)
-- npm install express cors dotenv mongoose (instala dependencias principales)
+- npm install express cors dotenv mongoose bcryptjs jsonwebtoken (instala dependencias principales)
 - npm install -D nodemon (instala dependencia de desarrollo)
 
 
