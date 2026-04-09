@@ -1,5 +1,5 @@
-import { Table } from "../models/Table.model.js";
-import { Waiter } from "../models/Waiter.model.js";
+import { Table } from "../models/table.model.js";
+import { Waiter } from "../models/waiter.model.js";
 
 export const getTables = async (req, res) => {
     try {

@@ -1,27 +1,38 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-const waiterSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    trim: true,
+const waiterSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    phone: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    shift: {
+      type: String,
+      enum: ["mañana", "tarde"],
+      required: true,
+    },
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
   },
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    lowercase: true,
-  },
-  phone: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  shift: {
-    type: String,
-    enum: ['mañana', 'tarde'],
-    required: true,
-  },
-});
+  {
+    timestamps: true,
+  }
+);
 
-export const Waiter = mongoose.model('Waiter', waiterSchema);
+export const Waiter = mongoose.model("Waiter", waiterSchema);
