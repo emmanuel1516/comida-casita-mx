@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 import categoryRoutes from "./routes/category.route.js";
 import authRoutes from "./routes/auth.route.js";
 import dishRoutes from "./routes/dish.route.js";
+import tableRoutes from "./routes/table.route.js";
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/dishes", dishRoutes);
+app.use("/api/tables", tableRoutes);
 
 const PORT = process.env.PORT || 3000;
 

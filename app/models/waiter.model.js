@@ -18,3 +18,5 @@ const waiterSchema = new mongoose.Schema({
     trim: true,
   },
 });
+
+export const Waiter = mongoose.model('Waiter', waiterSchema);
