@@ -7,6 +7,7 @@ import authRoutes from "./routes/auth.route.js";
 import dishRoutes from "./routes/dish.route.js";
 import tableRoutes from "./routes/table.route.js";
 import waiterRoutes from "./routes/waiter.route.js";
+import orderRoutes from "./routes/order.route.js";
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/dishes", dishRoutes);
 app.use("/api/tables", tableRoutes);
 app.use("/api/waiters", waiterRoutes);
+app.use("/api/orders", orderRoutes);
 
 const PORT = process.env.PORT || 3000;
 
