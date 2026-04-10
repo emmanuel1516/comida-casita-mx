@@ -1,13 +1,25 @@
-import { createContext, useContext, useEffect, useState, useMemo } from "react";
+import { createContext, useContext, useState } from "react";
 
 const AuthContext = createContext();
 
+const getStoredUser = () => {
+  const savedUser = localStorage.getItem("user");
+
+  if (!savedUser) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(savedUser);
+  } catch (error) {
+    localStorage.removeItem("user");
+    return null;
+  }
+};
+
 export const AuthProvider = ({ children }) => {
-    const [token, setToken] = useState(null);
-    const [user, setUser] = useState(() => {
-        const savedUser = localStorage.getItem("user");
-        return savedUser ? JSON.parse(savedUser) : null;
-    });
+    const [token, setToken] = useState(() => localStorage.getItem("token") || "");
+    const [user, setUser] = useState(getStoredUser);
 
     const login = (tokenValue, userData) => {
         localStorage.setItem("token", tokenValue);
@@ -22,24 +34,14 @@ export const AuthProvider = ({ children }) => {
         setToken("");
         setUser(null);
     };
-
-    useEffect(() => {
-        const savedToken = localStorage.getItem("token") || "";
-        const savedUser = localStorage.getItem("user");
-        setToken(savedToken);
-        setUser(savedUser ? JSON.parse(savedUser) : null);
-    }, []);
-
-    const value = useMemo(
-        () => ({
-            token,
-            user,
-            isAuthenticated: Boolean(token),
-            login,
-            logout,
-        }),
-        [token, user, login, logout]
-    );
+    
+    const value = {
+        token,
+        user,
+        isAuthenticated: Boolean(token),
+        login,
+        logout,
+    };
 
   return (
     <AuthContext.Provider value={value}>
