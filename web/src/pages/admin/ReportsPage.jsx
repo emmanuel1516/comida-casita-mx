@@ -87,20 +87,26 @@ function ReportsPage() {
     return true;
   });
 
-  const totalSales = filteredOrders.reduce(
+  const salesOrders = filteredOrders.filter((order) =>
+    ["listo", "entregado"].includes(order.status)
+  );
+
+  const totalSales = salesOrders.reduce(
     (total, order) => total + Number(order.total || 0),
     0
   );
-  const totalTips = filteredOrders.reduce(
+
+  const totalTips = salesOrders.reduce(
     (total, order) => total + Number(order.tip || 0),
     0
   );
-  const totalOrders = filteredOrders.length;
+
+  const totalOrders = salesOrders.length;
   const averageTicket = totalOrders > 0 ? totalSales / totalOrders : 0;
 
   const groupedByWaiter = {};
 
-  for (const order of filteredOrders) {
+  for (const order of salesOrders) {
     const waiterId = order.waiter?._id || "no-waiter";
     const waiterName = order.waiter?.name || "Sin mesero";
 
@@ -196,7 +202,7 @@ function ReportsPage() {
             </article>
 
             <article className="reports-summary-card">
-              <span>Cantidad de pedidos</span>
+              <span>Pedidos cerrados</span>
               <strong>{totalOrders}</strong>
             </article>
 
