@@ -8,8 +8,13 @@ function RoleRoute({ children, allowedRoles = [] }) {
     return <Navigate to="/login" replace />;
   }
 
+  if (allowedRoles.length === 0) {
+    return children;
+  }
+
   if (!allowedRoles.includes(user.role)) {
-    return <Navigate to="/admin/dashboard" replace />;
+    const redirectTo = user.role === "admin" ? "/admin/dashboard" : "/orders";
+    return <Navigate to={redirectTo} replace />;
   }
 
   return children;

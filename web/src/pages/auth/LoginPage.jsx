@@ -52,7 +52,7 @@ function LoginPage() {
       }
 
       login(data.token, data.user);
-      navigate("/admin/dashboard");
+      navigate(data.user.role === "admin" ? "/admin/dashboard" : "/orders");
     } catch (error) {
       setErrorMessage(error.message || "Ocurrió un error al iniciar sesión");
     } finally {

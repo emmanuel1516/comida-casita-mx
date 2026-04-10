@@ -11,6 +11,7 @@ import ReportsPage from "../pages/admin/ReportsPage";
 import KitchenPage from "../pages/kitchen/KitchenPage";
 import NotFoundPage from "../pages/NotFoundPage";
 import ProtectedRoute from "./ProtectedRoute";
+import RoleRoute from "./RoleRoute";
 
 function AppRouter() {
   return (
@@ -24,14 +25,78 @@ function AppRouter() {
           </ProtectedRoute>
         }
       >
-        <Route path="/admin/dashboard" element={<DashboardPage />} />
-        <Route path="/admin/categories" element={<CategoriesPage />} />
-        <Route path="/admin/dishes" element={<DishesPage />} />
-        <Route path="/admin/tables" element={<TablesPage />} />
-        <Route path="/admin/waiters" element={<WaitersPage />} />
-        <Route path="/admin/orders" element={<OrdersPage />} />
-        <Route path="/admin/reports" element={<ReportsPage />} />
-        <Route path="/kitchen" element={<KitchenPage />} />
+        <Route
+          path="/admin/dashboard"
+          element={
+            <RoleRoute allowedRoles={["admin"]}>
+              <DashboardPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/admin/categories"
+          element={
+            <RoleRoute allowedRoles={["admin"]}>
+              <CategoriesPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/admin/dishes"
+          element={
+            <RoleRoute allowedRoles={["admin"]}>
+              <DishesPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/admin/tables"
+          element={
+            <RoleRoute allowedRoles={["admin"]}>
+              <TablesPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/admin/waiters"
+          element={
+            <RoleRoute allowedRoles={["admin"]}>
+              <WaitersPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/admin/orders"
+          element={
+            <RoleRoute allowedRoles={["admin"]}>
+              <OrdersPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/admin/reports"
+          element={
+            <RoleRoute allowedRoles={["admin"]}>
+              <ReportsPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/orders"
+          element={
+            <RoleRoute allowedRoles={["admin", "mesero"]}>
+              <OrdersPage />
+            </RoleRoute>
+          }
+        />
+        <Route
+          path="/kitchen"
+          element={
+            <RoleRoute allowedRoles={["admin", "mesero"]}>
+              <KitchenPage />
+            </RoleRoute>
+          }
+        />
       </Route>
 
       <Route path="/" element={<Navigate to="/login" replace />} />
