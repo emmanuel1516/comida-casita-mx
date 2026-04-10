@@ -12,6 +12,7 @@ import orderRoutes from "./routes/order.route.js";
 dotenv.config();
 
 const app = express();
+const normalizeOrigin = (value) => value?.replace(/\/+$/, "");
 
 const localOriginPatterns = [
   /^https?:\/\/localhost:\d+$/,
@@ -26,20 +27,26 @@ const allowedOrigins = new Set(
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     process.env.FRONTEND_URL,
-  ].filter(Boolean)
+  ]
+    .map(normalizeOrigin)
+    .filter(Boolean)
 );
 
 const corsOptions = {
   origin(origin, callback) {
-    if (!origin) {
+    const normalizedOrigin = normalizeOrigin(origin);
+
+    if (!normalizedOrigin) {
       return callback(null, true);
     }
 
-    if (allowedOrigins.has(origin)) {
+    if (allowedOrigins.has(normalizedOrigin)) {
       return callback(null, true);
     }
 
-    const isLocalOrigin = localOriginPatterns.some((pattern) => pattern.test(origin));
+    const isLocalOrigin = localOriginPatterns.some((pattern) =>
+      pattern.test(normalizedOrigin)
+    );
 
     if (isLocalOrigin) {
       return callback(null, true);
