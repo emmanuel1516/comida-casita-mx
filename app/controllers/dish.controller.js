@@ -56,8 +56,9 @@ export const createDish = async (req, res) => {
 
 export const updateDish = async (req, res) => {
     try {
+        const { id } = req.params;
         const { name, description, category, price, available } = req.body;
-        const dish = await Dish.findById(req.params.id);
+        const dish = await Dish.findById(id);
 
         if (!dish) {
             return res.status(404).json({ message: "Plato no encontrado" });
