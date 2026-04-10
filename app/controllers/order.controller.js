@@ -45,6 +45,7 @@ export const createOrder = async (req, res) => {
       specialNotes,
       waiter,
       items,
+      status,
       shift,
       tip,
     } = req.body;
@@ -64,6 +65,10 @@ export const createOrder = async (req, res) => {
 
     if (!shift || !["mañana", "tarde"].includes(shift)) {
       return res.status(400).json({ message: "Turno inválido" });
+    }
+
+    if (status && !["pendiente", "preparando", "listo", "entregado"].includes(status)) {
+      return res.status(400).json({ message: "Estado inválido" });
     }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -140,6 +145,7 @@ export const createOrder = async (req, res) => {
       specialNotes: specialNotes || "",
       waiter,
       items: processedItems,
+      status: status || "pendiente",
       shift,
       total,
       tip: finalTip,
