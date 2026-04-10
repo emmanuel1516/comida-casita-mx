@@ -17,6 +17,8 @@ const initialForm = {
   items: [{ dish: "", quantity: 1 }],
 };
 
+const ORDERS_POLLING_INTERVAL_MS = 10000;
+
 function OrdersPage() {
   const { user } = useAuth();
   const [search, setSearch] = useState("");
@@ -84,62 +86,80 @@ function OrdersPage() {
     return data;
   };
 
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
+  const loadData = async ({ showLoader = false } = {}) => {
+    try {
+      if (showLoader) {
+        setIsLoading(true);
+      }
+
+      const token = localStorage.getItem("token");
+      const headers = {
+        "Content-Type": "application/json",
+        Authorization: token ? `Bearer ${token}` : "",
+      };
+
+      const [ordersResponse, tablesResponse, waitersResponse, dishesResponse] =
+        await Promise.all([
+          fetch(`${API_URL}/api/orders`, { headers }),
+          fetch(`${API_URL}/api/tables`, { headers }),
+          fetch(`${API_URL}/api/waiters`, { headers }),
+          fetch(`${API_URL}/api/dishes`, { headers }),
+        ]);
+
+      const [ordersData, tablesData, waitersData, dishesData] =
+        await Promise.all([
+          ordersResponse.json(),
+          tablesResponse.json(),
+          waitersResponse.json(),
+          dishesResponse.json(),
+        ]);
+
+      if (!ordersResponse.ok) {
+        throw new Error(ordersData.message || "No se pudieron cargar los pedidos");
+      }
+
+      if (!tablesResponse.ok) {
+        throw new Error(tablesData.message || "No se pudieron cargar las mesas");
+      }
+
+      if (!waitersResponse.ok) {
+        throw new Error(waitersData.message || "No se pudieron cargar los meseros");
+      }
+
+      if (!dishesResponse.ok) {
+        throw new Error(dishesData.message || "No se pudieron cargar los platillos");
+      }
+
+      setOrders(ordersData);
+      setTables(tablesData);
+      setWaiters(waitersData);
+      setDishes(dishesData);
       setErrorMessage("");
-
-      try {
-        const token = localStorage.getItem("token");
-        const headers = {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
-        };
-
-        const [ordersResponse, tablesResponse, waitersResponse, dishesResponse] =
-          await Promise.all([
-            fetch(`${API_URL}/api/orders`, { headers }),
-            fetch(`${API_URL}/api/tables`, { headers }),
-            fetch(`${API_URL}/api/waiters`, { headers }),
-            fetch(`${API_URL}/api/dishes`, { headers }),
-          ]);
-
-        const [ordersData, tablesData, waitersData, dishesData] =
-          await Promise.all([
-            ordersResponse.json(),
-            tablesResponse.json(),
-            waitersResponse.json(),
-            dishesResponse.json(),
-          ]);
-
-        if (!ordersResponse.ok) {
-          throw new Error(ordersData.message || "No se pudieron cargar los pedidos");
-        }
-
-        if (!tablesResponse.ok) {
-          throw new Error(tablesData.message || "No se pudieron cargar las mesas");
-        }
-
-        if (!waitersResponse.ok) {
-          throw new Error(waitersData.message || "No se pudieron cargar los meseros");
-        }
-
-        if (!dishesResponse.ok) {
-          throw new Error(dishesData.message || "No se pudieron cargar los platillos");
-        }
-
-        setOrders(ordersData);
-        setTables(tablesData);
-        setWaiters(waitersData);
-        setDishes(dishesData);
-      } catch (error) {
-        setErrorMessage(error.message || "Ocurrio un error al cargar los pedidos");
-      } finally {
+    } catch (error) {
+      setErrorMessage(error.message || "Ocurrio un error al cargar los pedidos");
+    } finally {
+      if (showLoader) {
         setIsLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    loadData({ showLoader: true });
+
+    const refreshOrders = () => {
+      if (document.visibilityState === "visible") {
+        loadData();
       }
     };
 
-    loadData();
+    const intervalId = window.setInterval(refreshOrders, ORDERS_POLLING_INTERVAL_MS);
+    document.addEventListener("visibilitychange", refreshOrders);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", refreshOrders);
+    };
   }, []);
 
   useEffect(() => {

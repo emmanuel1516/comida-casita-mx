@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { API_URL } from "../../api/api";
 import "./kitchen-page.css";
 
+const KITCHEN_POLLING_INTERVAL_MS = 10000;
+
 function KitchenPage() {
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -14,34 +16,52 @@ function KitchenPage() {
     setSuccessMessage("");
   };
 
-  useEffect(() => {
-    const loadOrders = async () => {
-      try {
+  const loadOrders = async ({ showLoader = false } = {}) => {
+    try {
+      if (showLoader) {
         setIsLoading(true);
-        setErrorMessage("");
+      }
 
-        const token = localStorage.getItem("token");
-        const response = await fetch(`${API_URL}/api/orders`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: token ? `Bearer ${token}` : "",
-          },
-        });
-        const data = await response.json();
+      const token = localStorage.getItem("token");
+      const response = await fetch(`${API_URL}/api/orders`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token ? `Bearer ${token}` : "",
+        },
+      });
+      const data = await response.json();
 
-        if (!response.ok) {
-          throw new Error(data.message || "No se pudieron cargar los pedidos");
-        }
+      if (!response.ok) {
+        throw new Error(data.message || "No se pudieron cargar los pedidos");
+      }
 
-        setOrders(data);
-      } catch (error) {
-        setErrorMessage(error.message || "Ocurrió un error al obtener los pedidos");
-      } finally {
+      setOrders(data);
+      setErrorMessage("");
+    } catch (error) {
+      setErrorMessage(error.message || "Ocurrió un error al obtener los pedidos");
+    } finally {
+      if (showLoader) {
         setIsLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    loadOrders({ showLoader: true });
+
+    const refreshKitchen = () => {
+      if (document.visibilityState === "visible") {
+        loadOrders();
       }
     };
 
-    loadOrders();
+    const intervalId = window.setInterval(refreshKitchen, KITCHEN_POLLING_INTERVAL_MS);
+    document.addEventListener("visibilitychange", refreshKitchen);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", refreshKitchen);
+    };
   }, []);
 
   const kitchenOrders = orders
