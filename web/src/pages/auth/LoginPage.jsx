@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { API_URL } from "../../api/api";
 import "./login-page.css";
 
 function LoginPage() {
@@ -12,24 +13,51 @@ function LoginPage() {
     password: "",
   });
 
+  const [errorMessage, setErrorMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleChange = (event) => {
     setForm({
       ...form,
       [event.target.name]: event.target.value,
     });
+
+    if (errorMessage) {
+      setErrorMessage("");
+    }
   };
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
-    // Login temporal para probar la estructura
-    login("token-demo", {
-      name: "Admin Demo",
-      email: form.email,
-      role: "admin",
-    });
+    setIsLoading(true);
+    setErrorMessage("");
 
-    navigate("/admin/dashboard");
+    try {
+      const response = await fetch(`${API_URL}/api/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Credenciales inválidas");
+      }
+
+      login(data.token, data.user);
+      navigate("/admin/dashboard");
+    } catch (error) {
+      setErrorMessage(error.message || "Ocurrió un error al iniciar sesión");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -67,8 +95,10 @@ function LoginPage() {
             />
           </div>
 
-          <button type="submit" className="login-button">
-            Ingresar
+          {errorMessage && <p className="login-error">{errorMessage}</p>}
+
+          <button type="submit" className="login-button" disabled={isLoading}>
+            {isLoading ? "Ingresando..." : "Ingresar"}
           </button>
         </form>
       </div>
