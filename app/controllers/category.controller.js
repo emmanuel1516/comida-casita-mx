@@ -54,7 +54,7 @@ export const updateCategory = async (req, res) => {
 
     const updatedCategory = await Category.findByIdAndUpdate(
       id,
-      { name, description },
+      { name, description, isActive },
       { new: true, runValidators: true }
     );
 
