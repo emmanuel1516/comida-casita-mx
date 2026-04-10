@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { API_URL } from "../../api/api";
 import "./dashboard-page.css";
 
+const DASHBOARD_POLLING_INTERVAL_MS = 10000;
+
 function DashboardPage() {
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -35,6 +37,24 @@ function DashboardPage() {
     };
 
     loadOrders();
+
+    const refreshDashboard = () => {
+      if (document.visibilityState === "visible") {
+        loadOrders();
+      }
+    };
+
+    const intervalId = window.setInterval(
+      refreshDashboard,
+      DASHBOARD_POLLING_INTERVAL_MS
+    );
+
+    document.addEventListener("visibilitychange", refreshDashboard);
+
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", refreshDashboard);
+    };
   }, []);
 
   const today = new Date();
@@ -53,15 +73,21 @@ function DashboardPage() {
     );
   });
 
-  const totalSales = todayOrders.reduce(
+  const salesOrders = todayOrders.filter((order) =>
+    ["listo", "entregado"].includes(order.status)
+  );
+
+  const totalSales = salesOrders.reduce(
     (total, order) => total + Number(order.total || 0),
     0
   );
-  const totalTips = todayOrders.reduce(
+
+  const totalTips = salesOrders.reduce(
     (total, order) => total + Number(order.tip || 0),
     0
   );
-  const totalOrders = todayOrders.length;
+
+  const totalOrders = salesOrders.length;
   const averageTicket = totalOrders > 0 ? totalSales / totalOrders : 0;
 
   const statusSummary = {
@@ -71,15 +97,17 @@ function DashboardPage() {
     entregado: 0,
   };
 
-  let morningSales = 0;
-  let afternoonSales = 0;
-  const groupedByWaiter = {};
-
   for (const order of todayOrders) {
     if (order.status in statusSummary) {
       statusSummary[order.status] += 1;
     }
+  }
 
+  let morningSales = 0;
+  let afternoonSales = 0;
+  const groupedByWaiter = {};
+
+  for (const order of salesOrders) {
     if (order.shift === "mañana") {
       morningSales += Number(order.total || 0);
     }
@@ -103,9 +131,9 @@ function DashboardPage() {
     groupedByWaiter[waiterId].totalOrders += 1;
   }
 
-  const topWaiter = Object.values(groupedByWaiter).sort(
-    (a, b) => b.totalSales - a.totalSales
-  )[0] || null;
+  const topWaiter =
+    Object.values(groupedByWaiter).sort((a, b) => b.totalSales - a.totalSales)[0] ||
+    null;
 
   const recentOrders = [...todayOrders]
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -146,7 +174,7 @@ function DashboardPage() {
             </article>
 
             <article className="dashboard-summary-card">
-              <span>Pedidos del día</span>
+              <span>Pedidos cerrados</span>
               <strong>{totalOrders}</strong>
             </article>
 
