@@ -248,6 +248,6 @@ Además, los endpoints sensibles están protegidos tanto en frontend como en bac
 - URL: https://github.com/emmanuel1516/comida-casita-mx
 
 ## Videos explicativos
-- Demo funcional:
+- Demo funcional: https://www.loom.com/share/3647f3d8c23c4318b7aee45b6909d56c
 - Video técnico:
 - Funcionalidad Extra:
