@@ -51,7 +51,10 @@
   color: var(--color-text);
   background: var(--color-surface-soft);
   border: 1px solid var(--color-border);
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .sidebar-link:hover {
@@ -78,12 +81,14 @@
 @media (min-width: 1200px) {
   .sidebar {
     width: 240px;
+    min-width: 240px;
     min-height: 100dvh;
     border-bottom: none;
     border-right: 1px solid var(--color-border);
     padding: 24px 16px;
     position: sticky;
     top: 0;
+    align-self: flex-start;
   }
 
   .sidebar-top {
@@ -102,11 +107,18 @@
 
   .sidebar-link {
     background: transparent;
-    border-color: transparent;
+    border: 1px solid transparent;
+    color: var(--color-text);
   }
 
   .sidebar-link:hover {
     background: #eef2f7;
     border-color: #e2e8f0;
+  }
+
+  .sidebar-link.active {
+    background: var(--color-text);
+    color: #ffffff;
+    border-color: var(--color-text);
   }
 }

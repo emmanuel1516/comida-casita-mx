@@ -39,7 +39,6 @@
 .dashboard-content {
   width: 100%;
   max-width: 1280px;
-  margin: 0 auto;
   padding: 20px 16px 32px;
 }
 
@@ -72,6 +71,12 @@
 @media (min-width: 1200px) {
   .dashboard-layout {
     flex-direction: row;
+    align-items: stretch;
+  }
+
+  .dashboard-main {
+    flex: 1;
+    min-width: 0;
   }
 
   .dashboard-header {
@@ -86,6 +91,7 @@
   }
 
   .dashboard-content {
+    max-width: 100%;
     padding: 24px;
   }
 

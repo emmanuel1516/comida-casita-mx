@@ -128,13 +128,17 @@ El proyecto se desarrollará de forma iterativa en las siguientes etapas:
 
 ---
 
-## Funcionalidad extra (propuesta)
+## Funcionalidad extra implementada
 
-Se implementará una funcionalidad adicional para aportar valor al negocio:
+Se implementó una funcionalidad adicional orientada a mejorar la operación del restaurante:
 
-- **Alerta de pedidos demorados**  
-  Permite identificar pedidos que superan cierto tiempo de espera para mejorar el seguimiento desde cocina y administración.
-
+- **Sincronización automática entre pedidos y mesas**  
+  Permite mantener actualizado el estado de las mesas según los pedidos activos.
+  
+  - Una mesa se marca como `occupied` cuando existe un pedido activo de mesa.
+  - Vuelve a `available` cuando el pedido se entrega, cambia de mesa, cambia de tipo o se elimina.
+  - Se impide crear o mover un pedido activo a una mesa que ya está ocupada por otro pedido activo.
+  - En el frontend, el selector de mesas muestra solo mesas disponibles y conserva visible la mesa actual cuando se está editando un pedido.
 ---
 
 ## Objetivo final
