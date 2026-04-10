@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { API_URL } from "../../api/api";
 import "./categories-page.css";
 
@@ -11,137 +11,129 @@ const initialForm = {
 function CategoriesPage() {
   const [search, setSearch] = useState("");
   const [categories, setCategories] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [actionMessage, setActionMessage] = useState("");
-  const [deletingId, setDeletingId] = useState(null);
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [editingCategoryId, setEditingCategoryId] = useState(null);
   const [form, setForm] = useState(initialForm);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingCategoryId, setEditingCategoryId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
+  const searchTerm = search.trim().toLowerCase();
+  const isEditing = editingCategoryId !== null;
+  const clearMessages = () => {
+    setErrorMessage("");
+    setSuccessMessage("");
+  };
 
   useEffect(() => {
-    const fetchCategories = async () => {
+    const loadCategories = async () => {
+      setIsLoading(true);
+      setErrorMessage("");
+
       try {
-        setIsLoading(true);
-        setErrorMessage("");
-
         const token = localStorage.getItem("token");
-
         const response = await fetch(`${API_URL}/api/categories`, {
-          method: "GET",
           headers: {
             "Content-Type": "application/json",
-            Authorization: token ? `Bearer ${token}` : "",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
         });
-
         const data = await response.json();
 
         if (!response.ok) {
           throw new Error(data.message || "No se pudieron cargar las categorías");
         }
 
-        let normalizedCategories = [];
-
-        if (Array.isArray(data)) {
-          normalizedCategories = data;
-        } else if (Array.isArray(data.categories)) {
-          normalizedCategories = data.categories;
-        }
-
-        setCategories(normalizedCategories);
+        setCategories(data);
       } catch (error) {
         setErrorMessage(
-          error.message || "Ocurrió un error al obtener las categorías"
+          error.message || "Ocurrió un error al cargar las categorías"
         );
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchCategories();
+    loadCategories();
   }, []);
 
-  const filteredCategories = useMemo(() => {
-    return categories.filter((category) => {
-      const name = category.name || category.nombre || "";
-      return name.toLowerCase().includes(search.toLowerCase());
-    });
-  }, [categories, search]);
+  const filteredCategories = categories.filter((category) =>
+    category.name.toLowerCase().includes(searchTerm)
+  );
 
   const openCreateModal = () => {
+    clearMessages();
     setEditingCategoryId(null);
     setForm(initialForm);
-    setActionMessage("");
-    setErrorMessage("");
     setIsModalOpen(true);
   };
 
   const openEditModal = (category) => {
-    setEditingCategoryId(category._id || category.id);
+    clearMessages();
+    setEditingCategoryId(category._id);
     setForm({
-      name: category.name || category.nombre || "",
-      description: category.description || category.descripcion || "",
-      isActive: Boolean(category.isActive),
+      name: category.name,
+      description: category.description || "",
+      isActive: category.isActive,
     });
-    setActionMessage("");
-    setErrorMessage("");
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
-    if (isSaving) return;
+    if (isSaving) {
+      return;
+    }
+
     setIsModalOpen(false);
     setEditingCategoryId(null);
     setForm(initialForm);
   };
 
-  const handleChangeForm = (event) => {
-    const { name, value, type, checked } = event.target;
+  const handleFormChange = ({ target }) => {
+    const { name, value, type, checked } = target;
 
-    setForm((prev) => ({
-      ...prev,
+    setForm((current) => ({
+      ...current,
       [name]: type === "checkbox" ? checked : value,
     }));
+
+    if (errorMessage) {
+      setErrorMessage("");
+    }
   };
 
-  const handleSubmitForm = async (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!form.name.trim()) {
+    const payload = {
+      name: form.name.trim(),
+      description: form.description.trim(),
+      isActive: form.isActive,
+    };
+
+    if (!payload.name) {
       setErrorMessage("El nombre de la categoría es obligatorio");
       return;
     }
 
+    const endpoint = isEditing
+      ? `${API_URL}/api/categories/${editingCategoryId}`
+      : `${API_URL}/api/categories`;
+
     try {
       setIsSaving(true);
-      setErrorMessage("");
-      setActionMessage("");
+      clearMessages();
 
       const token = localStorage.getItem("token");
-
-      const isEditing = Boolean(editingCategoryId);
-      const endpoint = isEditing
-        ? `${API_URL}/api/categories/${editingCategoryId}`
-        : `${API_URL}/api/categories`;
-
-      const method = isEditing ? "PUT" : "POST";
-
       const response = await fetch(endpoint, {
-        method,
+        method: isEditing ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({
-          name: form.name.trim(),
-          description: form.description.trim(),
-          isActive: form.isActive,
-        }),
+        body: JSON.stringify(payload),
       });
-
       const data = await response.json();
 
       if (!response.ok) {
@@ -153,18 +145,16 @@ function CategoriesPage() {
         );
       }
 
-      const savedCategory = data.category || data;
-
       if (isEditing) {
-        setCategories((prevCategories) =>
-          prevCategories.map((item) =>
-            (item._id || item.id) === editingCategoryId ? savedCategory : item
+        setCategories((current) =>
+          current.map((category) =>
+            category._id === editingCategoryId ? data : category
           )
         );
-        setActionMessage("Categoría actualizada correctamente");
+        setSuccessMessage("Categoría actualizada correctamente");
       } else {
-        setCategories((prevCategories) => [savedCategory, ...prevCategories]);
-        setActionMessage("Categoría creada correctamente");
+        setCategories((current) => [data, ...current]);
+        setSuccessMessage("Categoría creada correctamente");
       }
 
       setIsModalOpen(false);
@@ -172,55 +162,44 @@ function CategoriesPage() {
       setForm(initialForm);
     } catch (error) {
       setErrorMessage(
-        error.message ||
-          "Ocurrió un error al guardar la categoría"
+        error.message || "Ocurrió un error al guardar la categoría"
       );
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDeleteCategory = async (category) => {
-    const categoryId = category._id || category.id;
-    const categoryName = category.name || category.nombre || "esta categoría";
-
+  const handleDelete = async (category) => {
     const confirmed = window.confirm(
-      `¿Seguro que querés eliminar ${categoryName}?`
+      `¿Seguro que querés eliminar ${category.name}?`
     );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     try {
-      setDeletingId(categoryId);
-      setErrorMessage("");
-      setActionMessage("");
+      setDeletingId(category._id);
+      clearMessages();
 
       const token = localStorage.getItem("token");
-
-      const response = await fetch(`${API_URL}/api/categories/${categoryId}`, {
+      const response = await fetch(`${API_URL}/api/categories/${category._id}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       });
-
-      let data = null;
-      const contentType = response.headers.get("content-type");
-
-      if (contentType && contentType.includes("application/json")) {
-        data = await response.json();
-      }
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data?.message || "No se pudo eliminar la categoría");
       }
 
-      setCategories((prevCategories) =>
-        prevCategories.filter((item) => (item._id || item.id) !== categoryId)
+      setCategories((current) =>
+        current.filter(({ _id }) => _id !== category._id)
       );
-
-      setActionMessage("Categoría eliminada correctamente");
+      setSuccessMessage("Categoría eliminada correctamente");
     } catch (error) {
       setErrorMessage(
         error.message || "Ocurrió un error al eliminar la categoría"
@@ -229,6 +208,15 @@ function CategoriesPage() {
       setDeletingId(null);
     }
   };
+
+  const modalTitle = isEditing ? "Editar categoría" : "Nueva categoría";
+  const submitLabel = isSaving
+    ? isEditing
+      ? "Guardando..."
+      : "Creando..."
+    : isEditing
+    ? "Guardar cambios"
+    : "Crear categoría";
 
   return (
     <section className="categories-page">
@@ -258,8 +246,8 @@ function CategoriesPage() {
         />
       </div>
 
-      {actionMessage && (
-        <div className="categories-page-success">{actionMessage}</div>
+      {successMessage && (
+        <div className="categories-page-success">{successMessage}</div>
       )}
 
       {isLoading ? (
@@ -280,49 +268,38 @@ function CategoriesPage() {
 
             <tbody>
               {filteredCategories.length > 0 ? (
-                filteredCategories.map((category) => {
-                  const id = category._id || category.id;
-                  const name = category.name || category.nombre || "Sin nombre";
-                  const description =
-                    category.description ||
-                    category.descripcion ||
-                    "Sin descripción";
-
-                  const isActive = Boolean(category.isActive);
-
-                  return (
-                    <tr key={id}>
-                      <td>{name}</td>
-                      <td>{description}</td>
-                      <td>
-                        <span
-                          className={`categories-page-status ${
-                            isActive ? "active" : "inactive"
-                          }`}
+                filteredCategories.map((category) => (
+                  <tr key={category._id}>
+                    <td>{category.name}</td>
+                    <td>{category.description || "Sin descripción"}</td>
+                    <td>
+                      <span
+                        className={`categories-page-status ${
+                          category.isActive ? "active" : "inactive"
+                        }`}
+                      >
+                        {category.isActive ? "Activa" : "Inactiva"}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="categories-page-actions">
+                        <button
+                          className="categories-page-edit-button"
+                          onClick={() => openEditModal(category)}
                         >
-                          {isActive ? "Activa" : "Inactiva"}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="categories-page-actions">
-                          <button
-                            className="categories-page-edit-button"
-                            onClick={() => openEditModal(category)}
-                          >
-                            Editar
-                          </button>
-                          <button
-                            className="categories-page-delete-button"
-                            onClick={() => handleDeleteCategory(category)}
-                            disabled={deletingId === id}
-                          >
-                            {deletingId === id ? "Eliminando..." : "Eliminar"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
+                          Editar
+                        </button>
+                        <button
+                          className="categories-page-delete-button"
+                          onClick={() => handleDelete(category)}
+                          disabled={deletingId === category._id}
+                        >
+                          {deletingId === category._id ? "Eliminando..." : "Eliminar"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
               ) : (
                 <tr>
                   <td colSpan="4" className="categories-page-empty">
@@ -339,9 +316,7 @@ function CategoriesPage() {
         <div className="categories-modal-overlay">
           <div className="categories-modal">
             <div className="categories-modal-header">
-              <h3>
-                {editingCategoryId ? "Editar categoría" : "Nueva categoría"}
-              </h3>
+              <h3>{modalTitle}</h3>
               <button
                 type="button"
                 className="categories-modal-close"
@@ -351,7 +326,7 @@ function CategoriesPage() {
               </button>
             </div>
 
-            <form className="categories-form" onSubmit={handleSubmitForm}>
+            <form className="categories-form" onSubmit={handleSubmit}>
               <div className="categories-form-field">
                 <label htmlFor="name">Nombre</label>
                 <input
@@ -359,7 +334,7 @@ function CategoriesPage() {
                   name="name"
                   type="text"
                   value={form.name}
-                  onChange={handleChangeForm}
+                  onChange={handleFormChange}
                   placeholder="Ej: Tacos"
                   required
                 />
@@ -371,7 +346,7 @@ function CategoriesPage() {
                   id="description"
                   name="description"
                   value={form.description}
-                  onChange={handleChangeForm}
+                  onChange={handleFormChange}
                   placeholder="Descripción de la categoría"
                   rows="4"
                 />
@@ -382,7 +357,7 @@ function CategoriesPage() {
                   type="checkbox"
                   name="isActive"
                   checked={form.isActive}
-                  onChange={handleChangeForm}
+                  onChange={handleFormChange}
                 />
                 Categoría activa
               </label>
@@ -404,13 +379,7 @@ function CategoriesPage() {
                   className="categories-form-save-button"
                   disabled={isSaving}
                 >
-                  {isSaving
-                    ? editingCategoryId
-                      ? "Guardando..."
-                      : "Creando..."
-                    : editingCategoryId
-                    ? "Guardar cambios"
-                    : "Crear categoría"}
+                  {submitLabel}
                 </button>
               </div>
             </form>
