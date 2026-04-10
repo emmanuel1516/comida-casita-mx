@@ -1,20 +1,30 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import "./sidebar.css";
 
 function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
+  const { user } = useAuth();
 
-  const links = [
-    { to: "/admin/dashboard", label: "Dashboard" },
-    { to: "/admin/categories", label: "Categorías" },
-    { to: "/admin/dishes", label: "Platillos" },
-    { to: "/admin/tables", label: "Mesas" },
-    { to: "/admin/waiters", label: "Meseros" },
-    { to: "/admin/orders", label: "Pedidos" },
-    { to: "/admin/reports", label: "Reportes" },
-    { to: "/kitchen", label: "Cocina" },
-  ];
+  const links =
+    user?.role === "admin"
+      ? [
+          { to: "/admin/dashboard", label: "Dashboard" },
+          { to: "/admin/categories", label: "Categorias" },
+          { to: "/admin/dishes", label: "Platillos" },
+          { to: "/admin/tables", label: "Mesas" },
+          { to: "/admin/waiters", label: "Meseros" },
+          { to: "/admin/orders", label: "Pedidos" },
+          { to: "/admin/reports", label: "Reportes" },
+          { to: "/kitchen", label: "Cocina" },
+        ]
+      : user?.role === "mesero"
+        ? [
+            { to: "/orders", label: "Pedidos" },
+            { to: "/kitchen", label: "Cocina" },
+          ]
+        : [];
 
   const handleToggleMenu = () => {
     setIsOpen(!isOpen);
@@ -33,9 +43,9 @@ function Sidebar() {
           className="sidebar-toggle"
           type="button"
           onClick={handleToggleMenu}
-          aria-label="Abrir menú"
+          aria-label="Abrir menu"
         >
-          ☰
+          &#9776;
         </button>
       </div>
 
