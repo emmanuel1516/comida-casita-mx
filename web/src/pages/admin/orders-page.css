@@ -247,6 +247,17 @@
   color: #374151;
 }
 
+.orders-form-help {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #6b7280;
+}
+
+.orders-form-help.is-error {
+  color: #b91c1c;
+}
+
 .orders-form-field input,
 .orders-form-field textarea,
 .orders-form-field select {

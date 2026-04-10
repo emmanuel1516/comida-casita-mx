@@ -42,6 +42,30 @@ function OrdersPage() {
     setSuccessMessage("");
   };
 
+  const getAssignedWaiterId = (tableId, sourceTables = tables) => {
+    if (!tableId) {
+      return "";
+    }
+
+    const selectedTable = sourceTables.find((table) => table._id === tableId);
+
+    if (!selectedTable?.assignedWaiter) {
+      return "";
+    }
+
+    return typeof selectedTable.assignedWaiter === "string"
+      ? selectedTable.assignedWaiter
+      : selectedTable.assignedWaiter._id || "";
+  };
+
+  const selectedTable = tables.find((table) => table._id === form.table) || null;
+  const assignedWaiterId = getAssignedWaiterId(form.table);
+  const assignedWaiterName = selectedTable?.assignedWaiter
+    ? typeof selectedTable.assignedWaiter === "string"
+      ? waiters.find((waiter) => waiter._id === selectedTable.assignedWaiter)?.name || ""
+      : selectedTable.assignedWaiter.name || ""
+    : "";
+
   const loadTables = async () => {
     const token = localStorage.getItem("token");
     const response = await fetch(`${API_URL}/api/tables`, {
@@ -57,6 +81,7 @@ function OrdersPage() {
     }
 
     setTables(data);
+    return data;
   };
 
   useEffect(() => {
@@ -117,6 +142,25 @@ function OrdersPage() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    if (form.type !== "mesa") {
+      return;
+    }
+
+    if (form.waiter === assignedWaiterId) {
+      return;
+    }
+
+    setForm((current) =>
+      current.type === "mesa"
+        ? {
+            ...current,
+            waiter: assignedWaiterId,
+          }
+        : current
+    );
+  }, [assignedWaiterId, form.type, form.waiter]);
+
   const filteredOrders = orders.filter((order) => {
     const tableNumber = order.table ? String(order.table.number) : "";
 
@@ -162,8 +206,10 @@ function OrdersPage() {
 
   const openEditModal = async (order) => {
     clearMessages();
+    let latestTables = tables;
+
     try {
-      await loadTables();
+      latestTables = await loadTables();
     } catch (error) {
       setErrorMessage(error.message || "No se pudieron cargar las mesas");
       return;
@@ -176,7 +222,12 @@ function OrdersPage() {
       customerPhone: order.customerPhone || "",
       deliveryAddress: order.deliveryAddress || "",
       specialNotes: order.specialNotes || "",
-      waiter: order.waiter?._id || "",
+      waiter:
+        order.type === "mesa"
+          ? getAssignedWaiterId(order.table?._id || "", latestTables) ||
+            order.waiter?._id ||
+            ""
+          : order.waiter?._id || "",
       status: order.status,
       shift: order.shift,
       tip: order.tip ?? 0,
@@ -203,10 +254,29 @@ function OrdersPage() {
   const handleFormChange = ({ target }) => {
     const { name, value } = target;
 
-    setForm((current) => ({
-      ...current,
-      [name]: name === "tip" ? Number(value) : value,
-    }));
+    setForm((current) => {
+      if (name === "table") {
+        return {
+          ...current,
+          table: value,
+          waiter: getAssignedWaiterId(value),
+        };
+      }
+
+      if (name === "type") {
+        return {
+          ...current,
+          type: value,
+          table: value === "delivery" ? "" : current.table,
+          waiter: value === "delivery" ? "" : getAssignedWaiterId(current.table),
+        };
+      }
+
+      return {
+        ...current,
+        [name]: name === "tip" ? Number(value) : value,
+      };
+    });
 
     if (errorMessage) {
       setErrorMessage("");
@@ -278,7 +348,12 @@ function OrdersPage() {
       }
     }
 
-    if (!form.waiter) {
+    if (form.type === "mesa" && !assignedWaiterId) {
+      setErrorMessage("La mesa seleccionada no tiene un mesero asignado");
+      return;
+    }
+
+    if (form.type === "delivery" && !form.waiter) {
       setErrorMessage("Debes seleccionar un mesero");
       return;
     }
@@ -323,7 +398,7 @@ function OrdersPage() {
       deliveryAddress:
         form.type === "delivery" ? form.deliveryAddress.trim() : "",
       specialNotes: form.specialNotes.trim(),
-      waiter: form.waiter,
+      waiter: form.type === "mesa" ? assignedWaiterId : form.waiter,
       items: itemsWithTotals.map((item) => ({
         dish: item.dish,
         name: item.name,
@@ -566,20 +641,45 @@ function OrdersPage() {
 
                 <div className="orders-form-field">
                   <label htmlFor="order-waiter">Mesero</label>
-                  <select
-                    id="order-waiter"
-                    name="waiter"
-                    value={form.waiter}
-                    onChange={handleFormChange}
-                    required
-                  >
-                    <option value="">Seleccionar mesero</option>
-                    {waiters.map((waiter) => (
-                      <option key={waiter._id} value={waiter._id}>
-                        {waiter.name}
-                      </option>
-                    ))}
-                  </select>
+                  {form.type === "mesa" ? (
+                    <>
+                      <input
+                        id="order-waiter"
+                        type="text"
+                        value={
+                          assignedWaiterName ||
+                          (form.table
+                            ? "La mesa no tiene mesero asignado"
+                            : "Selecciona una mesa")
+                        }
+                        readOnly
+                      />
+                      <small
+                        className={`orders-form-help ${
+                          form.table && !assignedWaiterId ? "is-error" : ""
+                        }`}
+                      >
+                        {form.table && !assignedWaiterId
+                          ? "Asigna un mesero a la mesa antes de guardar el pedido."
+                          : "Para pedidos de mesa se usa el mesero asignado a la mesa."}
+                      </small>
+                    </>
+                  ) : (
+                    <select
+                      id="order-waiter"
+                      name="waiter"
+                      value={form.waiter}
+                      onChange={handleFormChange}
+                      required
+                    >
+                      <option value="">Seleccionar mesero</option>
+                      {waiters.map((waiter) => (
+                        <option key={waiter._id} value={waiter._id}>
+                          {waiter.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 <div className="orders-form-field">

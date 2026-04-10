@@ -79,18 +79,10 @@ export const createOrder = async (req, res) => {
       tip,
     } = req.body;
     const nextStatus = status || "pendiente";
+    let resolvedWaiter = waiter;
 
     if (!type || !["mesa", "delivery"].includes(type)) {
       return res.status(400).json({ message: "Tipo de pedido invalido" });
-    }
-
-    if (!waiter) {
-      return res.status(400).json({ message: "El mesero es obligatorio" });
-    }
-
-    const waiterExists = await Waiter.findById(waiter);
-    if (!waiterExists) {
-      return res.status(400).json({ message: "El mesero no existe" });
     }
 
     if (!shift || !["mañana", "tarde"].includes(shift)) {
@@ -115,6 +107,21 @@ export const createOrder = async (req, res) => {
         return res.status(400).json({ message: "La mesa no existe" });
       }
 
+      if (!tableExists.assignedWaiter) {
+        return res.status(400).json({
+          message: "La mesa seleccionada no tiene un mesero asignado",
+        });
+      }
+
+      const assignedWaiter = await Waiter.findById(tableExists.assignedWaiter);
+      if (!assignedWaiter) {
+        return res.status(400).json({
+          message: "El mesero asignado a la mesa no existe",
+        });
+      }
+
+      resolvedWaiter = assignedWaiter._id;
+
       if (ACTIVE_TABLE_ORDER_STATUSES.includes(nextStatus)) {
         const tableIsOccupied = await hasActiveOrderForTable(table);
 
@@ -125,6 +132,15 @@ export const createOrder = async (req, res) => {
     }
 
     if (type === "delivery") {
+      if (!waiter) {
+        return res.status(400).json({ message: "El mesero es obligatorio" });
+      }
+
+      const waiterExists = await Waiter.findById(waiter);
+      if (!waiterExists) {
+        return res.status(400).json({ message: "El mesero no existe" });
+      }
+
       if (!customerName || !customerPhone || !deliveryAddress) {
         return res.status(400).json({
           message: "Para delivery debes enviar nombre, telefono y direccion",
@@ -178,7 +194,7 @@ export const createOrder = async (req, res) => {
       customerPhone: type === "delivery" ? customerPhone : "",
       deliveryAddress: type === "delivery" ? deliveryAddress : "",
       specialNotes: specialNotes || "",
-      waiter,
+      waiter: resolvedWaiter,
       items: processedItems,
       status: nextStatus,
       shift,
@@ -220,6 +236,7 @@ export const updateOrder = async (req, res) => {
       tip,
       status,
     } = req.body;
+    let resolvedWaiter = waiter;
 
     const existingOrder = await Order.findById(id);
     if (!existingOrder) {
@@ -233,11 +250,6 @@ export const updateOrder = async (req, res) => {
 
     if (!type || !["mesa", "delivery"].includes(type)) {
       return res.status(400).json({ message: "Tipo de pedido invalido" });
-    }
-
-    const waiterExists = await Waiter.findById(waiter);
-    if (!waiterExists) {
-      return res.status(400).json({ message: "El mesero no existe" });
     }
 
     if (!shift || !["mañana", "tarde"].includes(shift)) {
@@ -262,6 +274,21 @@ export const updateOrder = async (req, res) => {
         return res.status(400).json({ message: "La mesa no existe" });
       }
 
+      if (!tableExists.assignedWaiter) {
+        return res.status(400).json({
+          message: "La mesa seleccionada no tiene un mesero asignado",
+        });
+      }
+
+      const assignedWaiter = await Waiter.findById(tableExists.assignedWaiter);
+      if (!assignedWaiter) {
+        return res.status(400).json({
+          message: "El mesero asignado a la mesa no existe",
+        });
+      }
+
+      resolvedWaiter = assignedWaiter._id;
+
       if (ACTIVE_TABLE_ORDER_STATUSES.includes(status)) {
         const tableIsOccupied = await hasActiveOrderForTable(table, id);
 
@@ -272,6 +299,15 @@ export const updateOrder = async (req, res) => {
     }
 
     if (type === "delivery") {
+      if (!waiter) {
+        return res.status(400).json({ message: "El mesero es obligatorio" });
+      }
+
+      const waiterExists = await Waiter.findById(waiter);
+      if (!waiterExists) {
+        return res.status(400).json({ message: "El mesero no existe" });
+      }
+
       if (!customerName || !customerPhone || !deliveryAddress) {
         return res.status(400).json({
           message: "Para delivery debes enviar nombre, telefono y direccion",
@@ -324,7 +360,7 @@ export const updateOrder = async (req, res) => {
     existingOrder.customerPhone = type === "delivery" ? customerPhone : "";
     existingOrder.deliveryAddress = type === "delivery" ? deliveryAddress : "";
     existingOrder.specialNotes = specialNotes || "";
-    existingOrder.waiter = waiter;
+    existingOrder.waiter = resolvedWaiter;
     existingOrder.items = processedItems;
     existingOrder.shift = shift;
     existingOrder.status = status;
