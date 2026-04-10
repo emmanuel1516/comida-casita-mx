@@ -93,7 +93,7 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ message: "El mesero no existe" });
     }
 
-    if (!shift || !["ma\u00f1ana", "tarde"].includes(shift)) {
+    if (!shift || !["mañana", "tarde"].includes(shift)) {
       return res.status(400).json({ message: "Turno invalido" });
     }
 
@@ -240,7 +240,7 @@ export const updateOrder = async (req, res) => {
       return res.status(400).json({ message: "El mesero no existe" });
     }
 
-    if (!shift || !["ma\u00f1ana", "tarde"].includes(shift)) {
+    if (!shift || !["mañana", "tarde"].includes(shift)) {
       return res.status(400).json({ message: "Turno invalido" });
     }
 

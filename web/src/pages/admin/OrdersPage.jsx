@@ -12,7 +12,7 @@ const initialForm = {
   specialNotes: "",
   waiter: "",
   status: "pendiente",
-  shift: "ma\u00f1ana",
+  shift: "mañana",
   tip: 0,
   items: [{ dish: "", quantity: 1 }],
 };
@@ -288,7 +288,7 @@ function OrdersPage() {
       return;
     }
 
-    if (!["ma\u00f1ana", "tarde"].includes(form.shift)) {
+    if (!["mañana", "tarde"].includes(form.shift)) {
       setErrorMessage("El turno del pedido no es valido");
       return;
     }
@@ -498,7 +498,7 @@ function OrdersPage() {
                         }[order.status] || order.status}
                       </span>
                     </td>
-                    <td>{order.shift === "tarde" ? "Tarde" : "Ma\u00f1ana"}</td>
+                    <td>{order.shift === "tarde" ? "Tarde" : "Mañana"}</td>
                     <td>${Number(order.total || 0).toFixed(2)}</td>
                     <td>${Number(order.tip || 0).toFixed(2)}</td>
                     <td>
@@ -591,7 +591,7 @@ function OrdersPage() {
                     onChange={handleFormChange}
                     required
                   >
-                    <option value="ma\u00f1ana">Ma\u00f1ana</option>
+                    <option value="mañana">Mañana</option>
                     <option value="tarde">Tarde</option>
                   </select>
                 </div>

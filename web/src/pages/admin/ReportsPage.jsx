@@ -167,7 +167,7 @@ function ReportsPage() {
                 onChange={handleFilterChange}
               >
                 <option value="">Todos</option>
-                <option value="ma\u00f1ana">Ma\u00f1ana</option>
+                <option value="mañana">Mañana</option>
                 <option value="tarde">Tarde</option>
               </select>
             </div>
