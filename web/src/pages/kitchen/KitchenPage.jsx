@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { API_URL } from "../../api/api";
 import "./kitchen-page.css";
+import KitchenOrdersGrid from "./KitchenOrdersGrid";
+import {
+  buildUpdatePayload,
+  getNextStatus,
+  isClosingTransition,
+} from "./kitchenHelpers";
 
 const KITCHEN_POLLING_INTERVAL_MS = 10000;
 
@@ -31,6 +37,7 @@ function KitchenPage() {
           Authorization: token ? `Bearer ${token}` : "",
         },
       });
+
       const data = await response.json();
 
       if (!response.ok) {
@@ -49,6 +56,7 @@ function KitchenPage() {
 
         return nextValues;
       });
+
       setErrorMessage("");
     } catch (error) {
       setErrorMessage(error.message || "Ocurrió un error al obtener los pedidos");
@@ -72,6 +80,7 @@ function KitchenPage() {
       refreshKitchen,
       KITCHEN_POLLING_INTERVAL_MS
     );
+
     document.addEventListener("visibilitychange", refreshKitchen);
 
     return () => {
@@ -82,71 +91,7 @@ function KitchenPage() {
 
   const kitchenOrders = orders
     .filter((order) => ["pendiente", "preparando", "listo"].includes(order.status))
-    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-
-  const formatDateTime = (dateValue) => {
-    if (!dateValue) {
-      return "Sin fecha";
-    }
-
-    return new Date(dateValue).toLocaleString("es-AR", {
-      day: "2-digit",
-      month: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const getNextStatus = (order) => {
-    if (order.status === "pendiente") {
-      return "preparando";
-    }
-
-    if (order.status === "preparando") {
-      return order.type === "delivery" ? "entregado" : "listo";
-    }
-
-    return "";
-  };
-
-  const getNextStatusLabel = (order) => {
-    if (order.status === "pendiente") {
-      return "Marcar como preparando";
-    }
-
-    if (order.status === "preparando") {
-      return order.type === "delivery"
-        ? "Marcar como entregado"
-        : "Marcar como listo";
-    }
-
-    return "";
-  };
-
-  const isClosingTransition = (order, nextStatus) =>
-    (order.type === "mesa" && nextStatus === "listo") ||
-    (order.type === "delivery" && nextStatus === "entregado");
-
-  const buildUpdatePayload = (order, nextStatus, nextTip) => ({
-    type: order.type,
-    table: order.type === "mesa" ? order.table?._id || null : null,
-    customerName: order.type === "delivery" ? order.customerName || "" : "",
-    customerPhone: order.type === "delivery" ? order.customerPhone || "" : "",
-    deliveryAddress: order.type === "delivery" ? order.deliveryAddress || "" : "",
-    specialNotes: order.specialNotes || "",
-    waiter: order.waiter?._id || "",
-    items: order.items.map((item) => ({
-      dish: item.dish?._id || item.dish,
-      name: item.name,
-      price: Number(item.price || 0),
-      quantity: Number(item.quantity || 0),
-      subtotal: Number(item.subtotal || 0),
-    })),
-    status: nextStatus,
-    shift: order.shift,
-    total: Number(order.total || 0),
-    tip: Number(nextTip || 0),
-  });
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
   const handleTipChange = (orderId, value) => {
     setTipValues((current) => ({
@@ -187,6 +132,7 @@ function KitchenPage() {
         },
         body: JSON.stringify({ status: nextStatus }),
       });
+
       const data = await response.json();
 
       if (!response.ok) {
@@ -234,6 +180,7 @@ function KitchenPage() {
         },
         body: JSON.stringify(payload),
       });
+
       const data = await response.json();
 
       if (!response.ok) {
@@ -282,140 +229,16 @@ function KitchenPage() {
       ) : kitchenOrders.length === 0 ? (
         <div className="kitchen-page-empty">No hay pedidos activos en cocina.</div>
       ) : (
-        <div className="kitchen-page-grid">
-          {kitchenOrders.map((order) => {
-            const nextStatus = getNextStatus(order);
-            const nextStatusLabel = getNextStatusLabel(order);
-            const isClosing = closingOrderId === order._id;
-
-            return (
-              <article key={order._id} className="kitchen-order-card">
-                <div className="kitchen-order-top">
-                  <div>
-                    <h3 className="kitchen-order-title">
-                      {order.type === "delivery" ? "Delivery" : "Mesa"}
-                    </h3>
-                    <p className="kitchen-order-meta">
-                      {order.type === "mesa"
-                        ? `Mesa ${order.table?.number ?? "-"}`
-                        : order.customerName || "Sin cliente"}
-                    </p>
-                  </div>
-
-                  <span className={`kitchen-order-status ${order.status}`}>
-                    {{
-                      pendiente: "Pendiente",
-                      preparando: "Preparando",
-                      listo: "Listo",
-                      entregado: "Entregado",
-                    }[order.status] || order.status}
-                  </span>
-                </div>
-
-                <div className="kitchen-order-info">
-                  <p>
-                    <strong>Mesero:</strong> {order.waiter?.name || "Sin mesero"}
-                  </p>
-                  <p>
-                    <strong>Turno:</strong>{" "}
-                    {order.shift === "tarde" ? "Tarde" : "Mañana"}
-                  </p>
-                  <p>
-                    <strong>Fecha:</strong> {formatDateTime(order.createdAt)}
-                  </p>
-                  {order.type === "delivery" && order.deliveryAddress ? (
-                    <p>
-                      <strong>Dirección:</strong> {order.deliveryAddress}
-                    </p>
-                  ) : null}
-                  {order.specialNotes ? (
-                    <p>
-                      <strong>Notas:</strong> {order.specialNotes}
-                    </p>
-                  ) : null}
-                </div>
-
-                <div className="kitchen-order-items">
-                  <h4>Ítems</h4>
-                  <ul>
-                    {order.items.map((item, index) => (
-                      <li key={`${order._id}-${index}`}>
-                        <span>
-                          {item.quantity}x {item.name}
-                        </span>
-                        <span>${Number(item.subtotal || 0).toFixed(2)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="kitchen-order-footer">
-                  <div className="kitchen-order-total">
-                    <span>Total</span>
-                    <strong>${Number(order.total || 0).toFixed(2)}</strong>
-                  </div>
-
-                  {!isClosing && nextStatusLabel ? (
-                    <button
-                      className="kitchen-order-action-button"
-                      onClick={() => handleAdvanceStatus(order)}
-                      disabled={updatingId === order._id}
-                    >
-                      {updatingId === order._id
-                        ? "Actualizando..."
-                        : nextStatusLabel}
-                    </button>
-                  ) : null}
-                </div>
-
-                {isClosing ? (
-                  <div className="kitchen-order-closing-box">
-                    <div className="kitchen-order-closing-field">
-                      <label htmlFor={`tip-${order._id}`}>
-                        Propina ({order.type === "delivery" ? "entregar" : "cerrar mesa"})
-                      </label>
-                      <input
-                        id={`tip-${order._id}`}
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={tipValues[order._id] ?? ""}
-                        onChange={(event) =>
-                          handleTipChange(order._id, event.target.value)
-                        }
-                        placeholder="0"
-                      />
-                    </div>
-
-                    <div className="kitchen-order-closing-actions">
-                      <button
-                        type="button"
-                        className="kitchen-order-secondary-button"
-                        onClick={handleCancelClosing}
-                        disabled={updatingId === order._id}
-                      >
-                        Cancelar
-                      </button>
-
-                      <button
-                        type="button"
-                        className="kitchen-order-action-button"
-                        onClick={() => handleCloseOrder(order)}
-                        disabled={updatingId === order._id}
-                      >
-                        {updatingId === order._id
-                          ? "Guardando..."
-                          : order.type === "delivery"
-                            ? "Confirmar entrega"
-                            : "Confirmar cierre"}
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-              </article>
-            );
-          })}
-        </div>
+        <KitchenOrdersGrid
+          orders={kitchenOrders}
+          closingOrderId={closingOrderId}
+          updatingId={updatingId}
+          tipValues={tipValues}
+          onAdvanceStatus={handleAdvanceStatus}
+          onTipChange={handleTipChange}
+          onCancelClosing={handleCancelClosing}
+          onCloseOrder={handleCloseOrder}
+        />
       )}
     </section>
   );

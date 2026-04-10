@@ -6,7 +6,7 @@ import CategoriesPage from "../pages/admin/CategoriesPage";
 import DishesPage from "../pages/admin/DishesPage";
 import TablesPage from "../pages/admin/TablesPage";
 import WaitersPage from "../pages/admin/WaitersPage";
-import OrdersPage from "../pages/admin/OrdersPage";
+import OrdersPage from "../pages/orders/OrdersPage";
 import ReportsPage from "../pages/admin/ReportsPage";
 import KitchenPage from "../pages/kitchen/KitchenPage";
 import NotFoundPage from "../pages/NotFoundPage";

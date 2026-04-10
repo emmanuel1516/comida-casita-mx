@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { API_URL } from "../../api/api";
+import CategoriesTable from "./categories/CategoriesTable";
+import CategoryModal from "./categories/CategoryModal";
+import {
+  fetchJson,
+  initialForm,
+  validateCategoryForm,
+} from "./categories/categoryHelpers";
 import "./categories-page.css";
-
-const initialForm = {
-  name: "",
-  description: "",
-  isActive: true,
-};
 
 function CategoriesPage() {
   const [search, setSearch] = useState("");
@@ -19,8 +20,10 @@ function CategoriesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategoryId, setEditingCategoryId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+
   const searchTerm = search.trim().toLowerCase();
   const isEditing = editingCategoryId !== null;
+
   const clearMessages = () => {
     setErrorMessage("");
     setSuccessMessage("");
@@ -28,23 +31,11 @@ function CategoriesPage() {
 
   useEffect(() => {
     const loadCategories = async () => {
-      setIsLoading(true);
-      setErrorMessage("");
-
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(`${API_URL}/api/categories`, {
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        });
-        const data = await response.json();
+        setIsLoading(true);
+        setErrorMessage("");
 
-        if (!response.ok) {
-          throw new Error(data.message || "No se pudieron cargar las categorías");
-        }
-
+        const data = await fetchJson(`${API_URL}/api/categories`);
         setCategories(data);
       } catch (error) {
         setErrorMessage(
@@ -106,16 +97,18 @@ function CategoriesPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
+    const validationError = validateCategoryForm(form);
+
+    if (validationError) {
+      setErrorMessage(validationError);
+      return;
+    }
+
     const payload = {
       name: form.name.trim(),
       description: form.description.trim(),
       isActive: form.isActive,
     };
-
-    if (!payload.name) {
-      setErrorMessage("El nombre de la categoría es obligatorio");
-      return;
-    }
 
     const endpoint = isEditing
       ? `${API_URL}/api/categories/${editingCategoryId}`
@@ -125,25 +118,10 @@ function CategoriesPage() {
       setIsSaving(true);
       clearMessages();
 
-      const token = localStorage.getItem("token");
-      const response = await fetch(endpoint, {
+      const data = await fetchJson(endpoint, {
         method: isEditing ? "PUT" : "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
         body: JSON.stringify(payload),
       });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message ||
-            (isEditing
-              ? "No se pudo actualizar la categoría"
-              : "No se pudo crear la categoría")
-        );
-      }
 
       if (isEditing) {
         setCategories((current) =>
@@ -182,19 +160,9 @@ function CategoriesPage() {
       setDeletingId(category._id);
       clearMessages();
 
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${API_URL}/api/categories/${category._id}`, {
+      await fetchJson(`${API_URL}/api/categories/${category._id}`, {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
       });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data?.message || "No se pudo eliminar la categoría");
-      }
 
       setCategories((current) =>
         current.filter(({ _id }) => _id !== category._id)
@@ -208,15 +176,6 @@ function CategoriesPage() {
       setDeletingId(null);
     }
   };
-
-  const modalTitle = isEditing ? "Editar categoría" : "Nueva categoría";
-  const submitLabel = isSaving
-    ? isEditing
-      ? "Guardando..."
-      : "Creando..."
-    : isEditing
-    ? "Guardar cambios"
-    : "Crear categoría";
 
   return (
     <section className="categories-page">
@@ -236,156 +195,29 @@ function CategoriesPage() {
         </button>
       </div>
 
-      <div className="categories-page-toolbar">
-        <input
-          type="text"
-          placeholder="Buscar categoría..."
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          className="categories-page-search"
-        />
-      </div>
+      <CategoriesTable
+        search={search}
+        setSearch={setSearch}
+        successMessage={successMessage}
+        errorMessage={errorMessage}
+        isLoading={isLoading}
+        isModalOpen={isModalOpen}
+        filteredCategories={filteredCategories}
+        deletingId={deletingId}
+        onEdit={openEditModal}
+        onDelete={handleDelete}
+      />
 
-      {successMessage && (
-        <div className="categories-page-success">{successMessage}</div>
-      )}
-
-      {isLoading ? (
-        <div className="categories-page-feedback">Cargando categorías...</div>
-      ) : errorMessage && !isModalOpen ? (
-        <div className="categories-page-error">{errorMessage}</div>
-      ) : (
-        <div className="categories-page-table-wrapper">
-          <table className="categories-page-table">
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Descripción</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {filteredCategories.length > 0 ? (
-                filteredCategories.map((category) => (
-                  <tr key={category._id}>
-                    <td>{category.name}</td>
-                    <td>{category.description || "Sin descripción"}</td>
-                    <td>
-                      <span
-                        className={`categories-page-status ${
-                          category.isActive ? "active" : "inactive"
-                        }`}
-                      >
-                        {category.isActive ? "Activa" : "Inactiva"}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="categories-page-actions">
-                        <button
-                          className="categories-page-edit-button"
-                          onClick={() => openEditModal(category)}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          className="categories-page-delete-button"
-                          onClick={() => handleDelete(category)}
-                          disabled={deletingId === category._id}
-                        >
-                          {deletingId === category._id ? "Eliminando..." : "Eliminar"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="4" className="categories-page-empty">
-                    No se encontraron categorías.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {isModalOpen && (
-        <div className="categories-modal-overlay">
-          <div className="categories-modal">
-            <div className="categories-modal-header">
-              <h3>{modalTitle}</h3>
-              <button
-                type="button"
-                className="categories-modal-close"
-                onClick={closeModal}
-              >
-                ×
-              </button>
-            </div>
-
-            <form className="categories-form" onSubmit={handleSubmit}>
-              <div className="categories-form-field">
-                <label htmlFor="name">Nombre</label>
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  value={form.name}
-                  onChange={handleFormChange}
-                  placeholder="Ej: Tacos"
-                  required
-                />
-              </div>
-
-              <div className="categories-form-field">
-                <label htmlFor="description">Descripción</label>
-                <textarea
-                  id="description"
-                  name="description"
-                  value={form.description}
-                  onChange={handleFormChange}
-                  placeholder="Descripción de la categoría"
-                  rows="4"
-                />
-              </div>
-
-              <label className="categories-form-checkbox">
-                <input
-                  type="checkbox"
-                  name="isActive"
-                  checked={form.isActive}
-                  onChange={handleFormChange}
-                />
-                Categoría activa
-              </label>
-
-              {errorMessage && (
-                <div className="categories-page-error">{errorMessage}</div>
-              )}
-
-              <div className="categories-form-actions">
-                <button
-                  type="button"
-                  className="categories-form-cancel-button"
-                  onClick={closeModal}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="categories-form-save-button"
-                  disabled={isSaving}
-                >
-                  {submitLabel}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <CategoryModal
+        isOpen={isModalOpen}
+        isEditing={isEditing}
+        form={form}
+        errorMessage={errorMessage}
+        isSaving={isSaving}
+        onClose={closeModal}
+        onSubmit={handleSubmit}
+        onFormChange={handleFormChange}
+      />
     </section>
   );
 }

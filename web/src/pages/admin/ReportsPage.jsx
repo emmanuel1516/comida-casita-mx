@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../../api/api";
+import ReportsFilters from "./reports/ReportsFilters";
+import ReportsSummaryCards from "./reports/ReportsSummaryCards";
+import ReportsTable from "./reports/ReportsTable";
+import {
+  buildReportData,
+  fetchJson,
+  initialFilters,
+} from "./reports/reportsHelpers";
 import "./reports-page.css";
-
-const initialFilters = {
-  waiter: "",
-  shift: "",
-  date: "",
-};
 
 function ReportsPage() {
   const [orders, setOrders] = useState([]);
@@ -21,29 +23,10 @@ function ReportsPage() {
         setIsLoading(true);
         setErrorMessage("");
 
-        const token = localStorage.getItem("token");
-        const headers = {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
-        };
-
-        const [ordersResponse, waitersResponse] = await Promise.all([
-          fetch(`${API_URL}/api/orders`, { headers }),
-          fetch(`${API_URL}/api/waiters`, { headers }),
-        ]);
-
         const [ordersData, waitersData] = await Promise.all([
-          ordersResponse.json(),
-          waitersResponse.json(),
+          fetchJson(`${API_URL}/api/orders`),
+          fetchJson(`${API_URL}/api/waiters`),
         ]);
-
-        if (!ordersResponse.ok) {
-          throw new Error(ordersData.message || "No se pudieron cargar los pedidos");
-        }
-
-        if (!waitersResponse.ok) {
-          throw new Error(waitersData.message || "No se pudieron cargar los meseros");
-        }
 
         setOrders(ordersData);
         setWaiters(waitersData);
@@ -66,68 +49,10 @@ function ReportsPage() {
     }));
   };
 
-  const filteredOrders = orders.filter((order) => {
-    const orderWaiterId = order.waiter?._id || "";
-    const orderDate = order.createdAt
-      ? new Date(order.createdAt).toISOString().slice(0, 10)
-      : "";
-
-    if (filters.waiter && orderWaiterId !== filters.waiter) {
-      return false;
-    }
-
-    if (filters.shift && order.shift !== filters.shift) {
-      return false;
-    }
-
-    if (filters.date && orderDate !== filters.date) {
-      return false;
-    }
-
-    return true;
-  });
-
-  const salesOrders = filteredOrders.filter((order) =>
-    ["listo", "entregado"].includes(order.status)
+  const reportData = useMemo(
+    () => buildReportData(orders, filters),
+    [orders, filters]
   );
-
-  const totalSales = salesOrders.reduce(
-    (total, order) => total + Number(order.total || 0),
-    0
-  );
-
-  const totalTips = salesOrders.reduce(
-    (total, order) => total + Number(order.tip || 0),
-    0
-  );
-
-  const totalOrders = salesOrders.length;
-  const averageTicket = totalOrders > 0 ? totalSales / totalOrders : 0;
-
-  const groupedByWaiter = {};
-
-  for (const order of salesOrders) {
-    const waiterId = order.waiter?._id || "no-waiter";
-    const waiterName = order.waiter?.name || "Sin mesero";
-
-    if (!groupedByWaiter[waiterId]) {
-      groupedByWaiter[waiterId] = {
-        waiterName,
-        totalSales: 0,
-        totalTips: 0,
-        totalOrders: 0,
-      };
-    }
-
-    groupedByWaiter[waiterId].totalSales += Number(order.total || 0);
-    groupedByWaiter[waiterId].totalTips += Number(order.tip || 0);
-    groupedByWaiter[waiterId].totalOrders += 1;
-  }
-
-  const reportByWaiter = Object.values(groupedByWaiter).map((item) => ({
-    ...item,
-    averageTicket: item.totalOrders > 0 ? item.totalSales / item.totalOrders : 0,
-  }));
 
   return (
     <section className="reports-page">
@@ -146,105 +71,20 @@ function ReportsPage() {
         <div className="reports-page-error">{errorMessage}</div>
       ) : (
         <>
-          <div className="reports-page-filters">
-            <div className="reports-page-filter-field">
-              <label htmlFor="filter-waiter">Mesero</label>
-              <select
-                id="filter-waiter"
-                name="waiter"
-                value={filters.waiter}
-                onChange={handleFilterChange}
-              >
-                <option value="">Todos</option>
-                {waiters.map((waiter) => (
-                  <option key={waiter._id} value={waiter._id}>
-                    {waiter.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <ReportsFilters
+            filters={filters}
+            waiters={waiters}
+            onChange={handleFilterChange}
+          />
 
-            <div className="reports-page-filter-field">
-              <label htmlFor="filter-shift">Turno</label>
-              <select
-                id="filter-shift"
-                name="shift"
-                value={filters.shift}
-                onChange={handleFilterChange}
-              >
-                <option value="">Todos</option>
-                <option value="mañana">Mañana</option>
-                <option value="tarde">Tarde</option>
-              </select>
-            </div>
+          <ReportsSummaryCards
+            totalSales={reportData.totalSales}
+            totalTips={reportData.totalTips}
+            totalOrders={reportData.totalOrders}
+            averageTicket={reportData.averageTicket}
+          />
 
-            <div className="reports-page-filter-field">
-              <label htmlFor="filter-date">Fecha</label>
-              <input
-                id="filter-date"
-                name="date"
-                type="date"
-                value={filters.date}
-                onChange={handleFilterChange}
-              />
-            </div>
-          </div>
-
-          <div className="reports-page-summary-grid">
-            <article className="reports-summary-card">
-              <span>Total ventas</span>
-              <strong>${totalSales.toFixed(2)}</strong>
-            </article>
-
-            <article className="reports-summary-card">
-              <span>Total propinas</span>
-              <strong>${totalTips.toFixed(2)}</strong>
-            </article>
-
-            <article className="reports-summary-card">
-              <span>Pedidos cerrados</span>
-              <strong>{totalOrders}</strong>
-            </article>
-
-            <article className="reports-summary-card">
-              <span>Promedio por pedido</span>
-              <strong>${averageTicket.toFixed(2)}</strong>
-            </article>
-          </div>
-
-          <div className="reports-page-table-wrapper">
-            <table className="reports-page-table">
-              <thead>
-                <tr>
-                  <th>Mesero</th>
-                  <th>Total ventas</th>
-                  <th>Propinas</th>
-                  <th>Pedidos</th>
-                  <th>Promedio por pedido</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {reportByWaiter.length > 0 ? (
-                  reportByWaiter.map((item, index) => (
-                    <tr key={`${item.waiterName}-${index}`}>
-                      <td>{item.waiterName}</td>
-                      <td>${item.totalSales.toFixed(2)}</td>
-                      <td>${item.totalTips.toFixed(2)}</td>
-                      <td>{item.totalOrders}</td>
-                      <td>${item.averageTicket.toFixed(2)}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="5" className="reports-page-empty">
-                      No hay datos para los filtros seleccionados.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          <ReportsTable reportByWaiter={reportData.reportByWaiter} />
         </>
       )}
     </section>

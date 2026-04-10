@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { API_URL } from "../../api/api";
+import WaitersTable from "./waiters/WaitersTable";
+import WaiterModal from "./waiters/WaiterModal";
+import {
+  fetchJson,
+  initialForm,
+  validateWaiterForm,
+} from "./waiters/waiterHelpers";
 import "./waiters-page.css";
-
-const initialForm = {
-  name: "",
-  email: "",
-  phone: "",
-  shift: "mañana",
-};
 
 function WaitersPage() {
   const [search, setSearch] = useState("");
@@ -31,26 +31,14 @@ function WaitersPage() {
 
   useEffect(() => {
     const loadWaiters = async () => {
-      setIsLoading(true);
-      setErrorMessage("");
-
       try {
-        const token = localStorage.getItem("token");
-        const response = await fetch(`${API_URL}/api/waiters`, {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: token ? `Bearer ${token}` : "",
-          },
-        });
-        const data = await response.json();
+        setIsLoading(true);
+        setErrorMessage("");
 
-        if (!response.ok) {
-          throw new Error(data.message || "No se pudieron cargar los meseros");
-        }
-
+        const data = await fetchJson(`${API_URL}/api/waiters`);
         setWaiters(data);
       } catch (error) {
-        setErrorMessage(error.message || "Ocurrio un error al obtener los meseros");
+        setErrorMessage(error.message || "Ocurrió un error al obtener los meseros");
       } finally {
         setIsLoading(false);
       }
@@ -112,30 +100,10 @@ function WaitersPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    const payload = {
-      name: form.name.trim(),
-      email: form.email.trim(),
-      phone: form.phone.trim(),
-      shift: form.shift,
-    };
+    const { payload, error } = validateWaiterForm(form);
 
-    if (!payload.name) {
-      setErrorMessage("El nombre es obligatorio");
-      return;
-    }
-
-    if (!payload.email) {
-      setErrorMessage("El email es obligatorio");
-      return;
-    }
-
-    if (!payload.phone) {
-      setErrorMessage("El telefono es obligatorio");
-      return;
-    }
-
-    if (!["mañana", "tarde"].includes(payload.shift)) {
-      setErrorMessage("El turno seleccionado no es valido");
+    if (error) {
+      setErrorMessage(error);
       return;
     }
 
@@ -147,25 +115,10 @@ function WaitersPage() {
       setIsSaving(true);
       clearMessages();
 
-      const token = localStorage.getItem("token");
-      const response = await fetch(endpoint, {
+      const data = await fetchJson(endpoint, {
         method: isEditing ? "PUT" : "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
-        },
         body: JSON.stringify(payload),
       });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.message ||
-            (isEditing
-              ? "No se pudo actualizar el mesero"
-              : "No se pudo crear el mesero")
-        );
-      }
 
       if (isEditing) {
         setWaiters((current) =>
@@ -183,7 +136,7 @@ function WaitersPage() {
       setEditingWaiterId(null);
       setForm(initialForm);
     } catch (error) {
-      setErrorMessage(error.message || "Ocurrio un error al guardar el mesero");
+      setErrorMessage(error.message || "Ocurrió un error al guardar el mesero");
     } finally {
       setIsSaving(false);
     }
@@ -191,7 +144,7 @@ function WaitersPage() {
 
   const handleDelete = async (waiter) => {
     const confirmed = window.confirm(
-      `Seguro que queres eliminar a ${waiter.name}?`
+      `Seguro que querés eliminar a ${waiter.name}?`
     );
 
     if (!confirmed) {
@@ -202,26 +155,16 @@ function WaitersPage() {
       setDeletingId(waiter._id);
       clearMessages();
 
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${API_URL}/api/waiters/${waiter._id}`, {
+      await fetchJson(`${API_URL}/api/waiters/${waiter._id}`, {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: token ? `Bearer ${token}` : "",
-        },
       });
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "No se pudo eliminar el mesero");
-      }
 
       setWaiters((current) =>
         current.filter((item) => item._id !== waiter._id)
       );
       setSuccessMessage("Mesero eliminado correctamente");
     } catch (error) {
-      setErrorMessage(error.message || "Ocurrio un error al eliminar el mesero");
+      setErrorMessage(error.message || "Ocurrió un error al eliminar el mesero");
     } finally {
       setDeletingId(null);
     }
@@ -233,7 +176,7 @@ function WaitersPage() {
         <div>
           <h2 className="waiters-page-title">Meseros</h2>
           <p className="waiters-page-subtitle">
-            Gestiona el personal de atencion del restaurante.
+            Gestiona el personal de atención del restaurante.
           </p>
         </div>
 
@@ -245,178 +188,29 @@ function WaitersPage() {
         </button>
       </div>
 
-      <div className="waiters-page-toolbar">
-        <input
-          type="text"
-          placeholder="Buscar por nombre, email o telefono..."
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          className="waiters-page-search"
-        />
-      </div>
+      <WaitersTable
+        search={search}
+        setSearch={setSearch}
+        successMessage={successMessage}
+        errorMessage={errorMessage}
+        isLoading={isLoading}
+        isModalOpen={isModalOpen}
+        filteredWaiters={filteredWaiters}
+        deletingId={deletingId}
+        onEdit={openEditModal}
+        onDelete={handleDelete}
+      />
 
-      {successMessage && (
-        <div className="waiters-page-success">{successMessage}</div>
-      )}
-
-      {isLoading ? (
-        <div className="waiters-page-feedback">Cargando meseros...</div>
-      ) : errorMessage && !isModalOpen ? (
-        <div className="waiters-page-error">{errorMessage}</div>
-      ) : (
-        <div className="waiters-page-table-wrapper">
-          <table className="waiters-page-table">
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Email</th>
-                <th>Telefono</th>
-                <th>Turno</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {filteredWaiters.length > 0 ? (
-                filteredWaiters.map((waiter) => (
-                  <tr key={waiter._id}>
-                    <td>{waiter.name}</td>
-                    <td>{waiter.email}</td>
-                    <td>{waiter.phone}</td>
-                    <td>
-                        <span className="waiters-page-shift">
-                        {waiter.shift === "tarde" ? "Tarde" : "Mañana"}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="waiters-page-actions">
-                        <button
-                          className="waiters-page-edit-button"
-                          onClick={() => openEditModal(waiter)}
-                        >
-                          Editar
-                        </button>
-                        <button
-                          className="waiters-page-delete-button"
-                          onClick={() => handleDelete(waiter)}
-                          disabled={deletingId === waiter._id}
-                        >
-                          {deletingId === waiter._id ? "Eliminando..." : "Eliminar"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="5" className="waiters-page-empty">
-                    No se encontraron meseros.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {isModalOpen && (
-        <div className="waiters-modal-overlay">
-          <div className="waiters-modal">
-            <div className="waiters-modal-header">
-              <h3>{isEditing ? "Editar mesero" : "Nuevo mesero"}</h3>
-              <button
-                type="button"
-                className="waiters-modal-close"
-                onClick={closeModal}
-              >
-                x
-              </button>
-            </div>
-
-            <form className="waiters-form" onSubmit={handleSubmit}>
-              <div className="waiters-form-field">
-                <label htmlFor="waiter-name">Nombre</label>
-                <input
-                  id="waiter-name"
-                  name="name"
-                  type="text"
-                  value={form.name}
-                  onChange={handleFormChange}
-                  placeholder="Ej: Juan Perez"
-                  required
-                />
-              </div>
-
-              <div className="waiters-form-field">
-                <label htmlFor="waiter-email">Email</label>
-                <input
-                  id="waiter-email"
-                  name="email"
-                  type="email"
-                  value={form.email}
-                  onChange={handleFormChange}
-                  placeholder="Ej: juan@mail.com"
-                  required
-                />
-              </div>
-
-              <div className="waiters-form-field">
-                <label htmlFor="waiter-phone">Telefono</label>
-                <input
-                  id="waiter-phone"
-                  name="phone"
-                  type="text"
-                  value={form.phone}
-                  onChange={handleFormChange}
-                  placeholder="Ej: 2342..."
-                  required
-                />
-              </div>
-
-              <div className="waiters-form-field">
-                <label htmlFor="waiter-shift">Turno</label>
-                <select
-                  id="waiter-shift"
-                  name="shift"
-                  value={form.shift}
-                  onChange={handleFormChange}
-                  required
-                >
-                  <option value="mañana">Mañana</option>
-                  <option value="tarde">Tarde</option>
-                </select>
-              </div>
-
-              {errorMessage && (
-                <div className="waiters-page-error">{errorMessage}</div>
-              )}
-
-              <div className="waiters-form-actions">
-                <button
-                  type="button"
-                  className="waiters-form-cancel-button"
-                  onClick={closeModal}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="waiters-form-save-button"
-                  disabled={isSaving}
-                >
-                  {isSaving
-                    ? isEditing
-                      ? "Guardando..."
-                      : "Creando..."
-                    : isEditing
-                    ? "Guardar cambios"
-                    : "Crear mesero"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <WaiterModal
+        isOpen={isModalOpen}
+        isEditing={isEditing}
+        form={form}
+        errorMessage={errorMessage}
+        isSaving={isSaving}
+        onClose={closeModal}
+        onSubmit={handleSubmit}
+        onFormChange={handleFormChange}
+      />
     </section>
   );
 }
