@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import "./sidebar.css";
 
 function Sidebar() {
+  const [isOpen, setIsOpen] = useState(false);
+
   const links = [
     { to: "/admin/dashboard", label: "Dashboard" },
     { to: "/admin/categories", label: "Categorías" },
@@ -13,15 +16,35 @@ function Sidebar() {
     { to: "/kitchen", label: "Cocina" },
   ];
 
+  const handleToggleMenu = () => {
+    setIsOpen(!isOpen);
+  };
+
+  const handleCloseMenu = () => {
+    setIsOpen(false);
+  };
+
   return (
     <aside className="sidebar">
-      <h2 className="sidebar-title">Comida Casita MX</h2>
+      <div className="sidebar-top">
+        <h2 className="sidebar-title">Comida Casita MX</h2>
 
-      <nav className="sidebar-nav">
+        <button
+          className="sidebar-toggle"
+          type="button"
+          onClick={handleToggleMenu}
+          aria-label="Abrir menú"
+        >
+          ☰
+        </button>
+      </div>
+
+      <nav className={`sidebar-nav ${isOpen ? "open" : ""}`}>
         {links.map((link) => (
           <NavLink
             key={link.to}
             to={link.to}
+            onClick={handleCloseMenu}
             className={({ isActive }) =>
               isActive ? "sidebar-link active" : "sidebar-link"
             }

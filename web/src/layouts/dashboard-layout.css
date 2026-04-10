@@ -1,5 +1,6 @@
 .dashboard-layout {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
   background: #f9fafb;
 }
@@ -8,20 +9,22 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .dashboard-header {
   background: #ffffff;
   border-bottom: 1px solid #e5e7eb;
-  padding: 20px 24px;
+  padding: 16px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 .dashboard-title {
   margin: 0;
-  font-size: 24px;
+  font-size: 22px;
   color: #111827;
 }
 
@@ -29,13 +32,15 @@
   margin: 6px 0 0;
   color: #6b7280;
   font-size: 14px;
+  line-height: 1.4;
 }
 
 .dashboard-content {
-  padding: 24px;
+  padding: 20px 16px;
 }
 
 .dashboard-logout-button {
+  width: 100%;
   padding: 10px 16px;
   border: none;
   border-radius: 8px;
@@ -47,4 +52,39 @@
 
 .dashboard-logout-button:hover {
   opacity: 0.9;
+}
+
+@media (min-width: 768px) {
+  .dashboard-header {
+    padding: 20px;
+  }
+
+  .dashboard-content {
+    padding: 24px 20px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .dashboard-layout {
+    flex-direction: row;
+  }
+
+  .dashboard-header {
+    padding: 20px 24px;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .dashboard-title {
+    font-size: 24px;
+  }
+
+  .dashboard-content {
+    padding: 24px;
+  }
+
+  .dashboard-logout-button {
+    width: auto;
+  }
 }

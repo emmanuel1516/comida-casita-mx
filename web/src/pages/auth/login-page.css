@@ -72,3 +72,22 @@
 .login-button:hover {
   opacity: 0.95;
 }
+
+@media (max-width: 480px) {
+  .login-page {
+    padding: 16px;
+  }
+
+  .login-card {
+    padding: 24px 18px;
+    border-radius: 10px;
+  }
+
+  .login-title {
+    font-size: 24px;
+  }
+
+  .login-button {
+    width: 100%;
+  }
+}
