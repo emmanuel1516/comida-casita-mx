@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { API_URL } from "../../api/api";
+import { useAuth } from "../../context/AuthContext";
 import "./orders-page.css";
 
 const initialForm = {
@@ -17,6 +18,7 @@ const initialForm = {
 };
 
 function OrdersPage() {
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [orders, setOrders] = useState([]);
   const [tables, setTables] = useState([]);
@@ -33,6 +35,7 @@ function OrdersPage() {
 
   const searchTerm = search.trim().toLowerCase();
   const isEditing = editingOrderId !== null;
+  const isAdmin = user?.role === "admin";
 
   const clearMessages = () => {
     setErrorMessage("");
@@ -471,13 +474,15 @@ function OrdersPage() {
                         >
                           Editar
                         </button>
-                        <button
-                          className="orders-page-delete-button"
-                          onClick={() => handleDelete(order)}
-                          disabled={deletingId === order._id}
-                        >
-                          {deletingId === order._id ? "Eliminando..." : "Eliminar"}
-                        </button>
+                        {isAdmin ? (
+                          <button
+                            className="orders-page-delete-button"
+                            onClick={() => handleDelete(order)}
+                            disabled={deletingId === order._id}
+                          >
+                            {deletingId === order._id ? "Eliminando..." : "Eliminar"}
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
