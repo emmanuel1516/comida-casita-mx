@@ -2,7 +2,7 @@ import { Category } from "../models/category.model.js";
 
 export const createCategory = async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, isActive } = req.body;
 
     const existingCategory = await Category.findOne({ name });
 
@@ -13,6 +13,7 @@ export const createCategory = async (req, res) => {
     const category = new Category({
       name,
       description,
+      isActive,
     });
 
     const savedCategory = await category.save();
@@ -49,7 +50,7 @@ export const getCategoryById = async (req, res) => {
 export const updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description } = req.body;
+    const { name, description, isActive } = req.body;
 
     const updatedCategory = await Category.findByIdAndUpdate(
       id,
