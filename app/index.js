@@ -13,29 +13,46 @@ dotenv.config();
 
 const app = express();
 
-const allowedOrigins = [
-  "http://localhost:5173",
-  process.env.FRONTEND_URL,
-].filter(Boolean);
+const localOriginPatterns = [
+  /^https?:\/\/localhost:\d+$/,
+  /^https?:\/\/127\.0\.0\.1:\d+$/,
+  /^https?:\/\/192\.168\.\d{1,3}\.\d{1,3}:\d+$/,
+  /^https?:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d+$/,
+  /^https?:\/\/172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}:\d+$/,
+];
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin) return callback(null, true);
-
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
-
-      return callback(new Error(`CORS bloqueado para: ${origin}`));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
+const allowedOrigins = new Set(
+  [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    process.env.FRONTEND_URL,
+  ].filter(Boolean)
 );
 
-app.options("*", cors());
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
+
+    const isLocalOrigin = localOriginPatterns.some((pattern) => pattern.test(origin));
+
+    if (isLocalOrigin) {
+      return callback(null, true);
+    }
+
+    return callback(new Error("Origen no permitido por CORS"));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+};
+
+app.use(cors(corsOptions));
 
 app.use(express.json());
 
@@ -54,6 +71,14 @@ app.use("/api/dishes", dishRoutes);
 app.use("/api/tables", tableRoutes);
 app.use("/api/waiters", waiterRoutes);
 app.use("/api/orders", orderRoutes);
+
+app.use((error, req, res, next) => {
+  if (error.message === "Origen no permitido por CORS") {
+    return res.status(403).json({ message: error.message });
+  }
+
+  return next(error);
+});
 
 const PORT = process.env.PORT || 3000;
 
