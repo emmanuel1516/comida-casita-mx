@@ -3,17 +3,46 @@ import { Waiter } from "../models/waiter.model.js";
 import { Dish } from "../models/dish.model.js";
 import { Table } from "../models/table.model.js";
 
+const ACTIVE_TABLE_ORDER_STATUSES = ["pendiente", "preparando", "listo"];
+
+const hasActiveOrderForTable = async (tableId, excludedOrderId = null) => {
+  const query = {
+    type: "mesa",
+    table: tableId,
+    status: { $in: ACTIVE_TABLE_ORDER_STATUSES },
+  };
+
+  if (excludedOrderId) {
+    query._id = { $ne: excludedOrderId };
+  }
+
+  return Boolean(await Order.exists(query));
+};
+
+const syncTableStatus = async (tableId) => {
+  if (!tableId) {
+    return;
+  }
+
+  const hasActiveOrders = await hasActiveOrderForTable(tableId);
+
+  await Table.findByIdAndUpdate(tableId, {
+    status: hasActiveOrders ? "occupied" : "available",
+  });
+};
+
 export const getOrders = async (req, res) => {
-    try {
-        const orders = await Order.find()
-            .populate("table")
-            .populate("waiter")
-            .populate("items.dish")
-            .sort({ createdAt: -1 });
-        res.json(orders);
-    } catch (error) {
-        res.status(500).json({ message: "Error al obtener los pedidos", error });
-    }
+  try {
+    const orders = await Order.find()
+      .populate("table")
+      .populate("waiter")
+      .populate("items.dish")
+      .sort({ createdAt: -1 });
+
+    res.json(orders);
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener los pedidos", error });
+  }
 };
 
 export const getOrderById = async (req, res) => {
@@ -49,9 +78,10 @@ export const createOrder = async (req, res) => {
       shift,
       tip,
     } = req.body;
+    const nextStatus = status || "pendiente";
 
     if (!type || !["mesa", "delivery"].includes(type)) {
-      return res.status(400).json({ message: "Tipo de pedido inválido" });
+      return res.status(400).json({ message: "Tipo de pedido invalido" });
     }
 
     if (!waiter) {
@@ -63,16 +93,16 @@ export const createOrder = async (req, res) => {
       return res.status(400).json({ message: "El mesero no existe" });
     }
 
-    if (!shift || !["mañana", "tarde"].includes(shift)) {
-      return res.status(400).json({ message: "Turno inválido" });
+    if (!shift || !["ma\u00f1ana", "tarde"].includes(shift)) {
+      return res.status(400).json({ message: "Turno invalido" });
     }
 
-    if (status && !["pendiente", "preparando", "listo", "entregado"].includes(status)) {
-      return res.status(400).json({ message: "Estado inválido" });
+    if (!["pendiente", "preparando", "listo", "entregado"].includes(nextStatus)) {
+      return res.status(400).json({ message: "Estado invalido" });
     }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: "Debes enviar al menos un ítem" });
+      return res.status(400).json({ message: "Debes enviar al menos un item" });
     }
 
     if (type === "mesa") {
@@ -84,13 +114,20 @@ export const createOrder = async (req, res) => {
       if (!tableExists) {
         return res.status(400).json({ message: "La mesa no existe" });
       }
+
+      if (ACTIVE_TABLE_ORDER_STATUSES.includes(nextStatus)) {
+        const tableIsOccupied = await hasActiveOrderForTable(table);
+
+        if (tableIsOccupied) {
+          return res.status(400).json({ message: "La mesa seleccionada ya esta ocupada" });
+        }
+      }
     }
 
     if (type === "delivery") {
       if (!customerName || !customerPhone || !deliveryAddress) {
         return res.status(400).json({
-          message:
-            "Para delivery debes enviar nombre, teléfono y dirección",
+          message: "Para delivery debes enviar nombre, telefono y direccion",
         });
       }
     }
@@ -109,7 +146,7 @@ export const createOrder = async (req, res) => {
 
       if (!dish.available) {
         return res.status(400).json({
-          message: `El platillo ${dish.name} no está disponible`,
+          message: `El platillo ${dish.name} no esta disponible`,
         });
       }
 
@@ -117,7 +154,7 @@ export const createOrder = async (req, res) => {
 
       if (!quantity || quantity < 1) {
         return res.status(400).json({
-          message: `Cantidad inválida para el platillo ${dish.name}`,
+          message: `Cantidad invalida para el platillo ${dish.name}`,
         });
       }
 
@@ -134,8 +171,6 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    const finalTip = Number(tip) || 0;
-
     const order = new Order({
       type,
       table: type === "mesa" ? table : null,
@@ -145,13 +180,17 @@ export const createOrder = async (req, res) => {
       specialNotes: specialNotes || "",
       waiter,
       items: processedItems,
-      status: status || "pendiente",
+      status: nextStatus,
       shift,
       total,
-      tip: finalTip,
+      tip: Number(tip) || 0,
     });
 
     const savedOrder = await order.save();
+
+    if (savedOrder.type === "mesa") {
+      await syncTableStatus(savedOrder.table);
+    }
 
     const populatedOrder = await Order.findById(savedOrder._id)
       .populate("table")
@@ -187,8 +226,13 @@ export const updateOrder = async (req, res) => {
       return res.status(404).json({ message: "Pedido no encontrado" });
     }
 
+    const previousTableId = existingOrder.table
+      ? existingOrder.table.toString()
+      : null;
+    const nextTableId = type === "mesa" ? table : null;
+
     if (!type || !["mesa", "delivery"].includes(type)) {
-      return res.status(400).json({ message: "Tipo de pedido inválido" });
+      return res.status(400).json({ message: "Tipo de pedido invalido" });
     }
 
     const waiterExists = await Waiter.findById(waiter);
@@ -196,16 +240,16 @@ export const updateOrder = async (req, res) => {
       return res.status(400).json({ message: "El mesero no existe" });
     }
 
-    if (!shift || !["mañana", "tarde"].includes(shift)) {
-      return res.status(400).json({ message: "Turno inválido" });
+    if (!shift || !["ma\u00f1ana", "tarde"].includes(shift)) {
+      return res.status(400).json({ message: "Turno invalido" });
     }
 
     if (!status || !["pendiente", "preparando", "listo", "entregado"].includes(status)) {
-      return res.status(400).json({ message: "Estado inválido" });
+      return res.status(400).json({ message: "Estado invalido" });
     }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: "Debes enviar al menos un ítem" });
+      return res.status(400).json({ message: "Debes enviar al menos un item" });
     }
 
     if (type === "mesa") {
@@ -217,13 +261,20 @@ export const updateOrder = async (req, res) => {
       if (!tableExists) {
         return res.status(400).json({ message: "La mesa no existe" });
       }
+
+      if (ACTIVE_TABLE_ORDER_STATUSES.includes(status)) {
+        const tableIsOccupied = await hasActiveOrderForTable(table, id);
+
+        if (tableIsOccupied) {
+          return res.status(400).json({ message: "La mesa seleccionada ya esta ocupada" });
+        }
+      }
     }
 
     if (type === "delivery") {
       if (!customerName || !customerPhone || !deliveryAddress) {
         return res.status(400).json({
-          message:
-            "Para delivery debes enviar nombre, teléfono y dirección",
+          message: "Para delivery debes enviar nombre, telefono y direccion",
         });
       }
     }
@@ -242,7 +293,7 @@ export const updateOrder = async (req, res) => {
 
       if (!dish.available) {
         return res.status(400).json({
-          message: `El platillo ${dish.name} no está disponible`,
+          message: `El platillo ${dish.name} no esta disponible`,
         });
       }
 
@@ -250,7 +301,7 @@ export const updateOrder = async (req, res) => {
 
       if (!quantity || quantity < 1) {
         return res.status(400).json({
-          message: `Cantidad inválida para el platillo ${dish.name}`,
+          message: `Cantidad invalida para el platillo ${dish.name}`,
         });
       }
 
@@ -282,6 +333,9 @@ export const updateOrder = async (req, res) => {
 
     await existingOrder.save();
 
+    const tablesToSync = [...new Set([previousTableId, nextTableId].filter(Boolean))];
+    await Promise.all(tablesToSync.map((tableId) => syncTableStatus(tableId)));
+
     const populatedOrder = await Order.findById(existingOrder._id)
       .populate("table")
       .populate("waiter")
@@ -300,21 +354,26 @@ export const updateOrderStatus = async (req, res) => {
     const { status } = req.body;
 
     if (!status || !["pendiente", "preparando", "listo", "entregado"].includes(status)) {
-      return res.status(400).json({ message: "Estado inválido" });
+      return res.status(400).json({ message: "Estado invalido" });
     }
 
-    const updatedOrder = await Order.findByIdAndUpdate(
-      id,
-      { status },
-      { new: true, runValidators: true }
-    )
+    const existingOrder = await Order.findById(id);
+
+    if (!existingOrder) {
+      return res.status(404).json({ message: "Pedido no encontrado" });
+    }
+
+    existingOrder.status = status;
+    await existingOrder.save();
+
+    if (existingOrder.type === "mesa") {
+      await syncTableStatus(existingOrder.table);
+    }
+
+    const updatedOrder = await Order.findById(existingOrder._id)
       .populate("table")
       .populate("waiter")
       .populate("items.dish");
-
-    if (!updatedOrder) {
-      return res.status(404).json({ message: "Pedido no encontrado" });
-    }
 
     res.status(200).json(updatedOrder);
   } catch (error) {
@@ -329,6 +388,10 @@ export const deleteOrder = async (req, res) => {
 
     if (!deletedOrder) {
       return res.status(404).json({ message: "Pedido no encontrado" });
+    }
+
+    if (deletedOrder.type === "mesa") {
+      await syncTableStatus(deletedOrder.table);
     }
 
     res.status(200).json({ message: "Pedido eliminado correctamente" });

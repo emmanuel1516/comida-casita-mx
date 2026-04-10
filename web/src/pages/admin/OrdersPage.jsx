@@ -42,6 +42,23 @@ function OrdersPage() {
     setSuccessMessage("");
   };
 
+  const loadTables = async () => {
+    const token = localStorage.getItem("token");
+    const response = await fetch(`${API_URL}/api/tables`, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: token ? `Bearer ${token}` : "",
+      },
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "No se pudieron cargar las mesas");
+    }
+
+    setTables(data);
+  };
+
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
@@ -126,16 +143,31 @@ function OrdersPage() {
   });
 
   const total = itemsWithTotals.reduce((acc, item) => acc + item.subtotal, 0);
+  const availableTables = tables.filter(
+    (table) => table.status === "available" || table._id === form.table
+  );
 
-  const openCreateModal = () => {
+  const openCreateModal = async () => {
     clearMessages();
+    try {
+      await loadTables();
+    } catch (error) {
+      setErrorMessage(error.message || "No se pudieron cargar las mesas");
+      return;
+    }
     setEditingOrderId(null);
     setForm(initialForm);
     setIsModalOpen(true);
   };
 
-  const openEditModal = (order) => {
+  const openEditModal = async (order) => {
     clearMessages();
+    try {
+      await loadTables();
+    } catch (error) {
+      setErrorMessage(error.message || "No se pudieron cargar las mesas");
+      return;
+    }
     setEditingOrderId(order._id);
     setForm({
       type: order.type,
@@ -345,6 +377,8 @@ function OrdersPage() {
         setSuccessMessage("Pedido creado correctamente");
       }
 
+      loadTables().catch(() => {});
+
       setIsModalOpen(false);
       setEditingOrderId(null);
       setForm(initialForm);
@@ -384,6 +418,7 @@ function OrdersPage() {
         current.filter((item) => item._id !== order._id)
       );
       setSuccessMessage("Pedido eliminado correctamente");
+      loadTables().catch(() => {});
     } catch (error) {
       setErrorMessage(error.message || "Ocurrio un error al eliminar el pedido");
     } finally {
@@ -587,8 +622,12 @@ function OrdersPage() {
                       onChange={handleFormChange}
                       required
                     >
-                      <option value="">Seleccionar mesa</option>
-                      {tables.map((table) => (
+                      <option value="">
+                        {availableTables.length > 0
+                          ? "Seleccionar mesa"
+                          : "No hay mesas disponibles"}
+                      </option>
+                      {availableTables.map((table) => (
                         <option key={table._id} value={table._id}>
                           Mesa {table.number}
                         </option>
