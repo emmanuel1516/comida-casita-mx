@@ -3,7 +3,7 @@ import { Waiter } from "../models/waiter.model.js";
 import { Dish } from "../models/dish.model.js";
 import { Table } from "../models/table.model.js";
 
-const ACTIVE_TABLE_ORDER_STATUSES = ["pendiente", "preparando", "listo"];
+const ACTIVE_TABLE_ORDER_STATUSES = ["pendiente", "preparando"];
 
 const hasActiveOrderForTable = async (tableId, excludedOrderId = null) => {
   const query = {
