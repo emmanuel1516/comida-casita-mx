@@ -249,5 +249,5 @@ Además, los endpoints sensibles están protegidos tanto en frontend como en bac
 
 ## Videos explicativos
 - Demo funcional: https://www.loom.com/share/3647f3d8c23c4318b7aee45b6909d56c
-- Video técnico:
-- Funcionalidad Extra:
+- Video técnico: https://www.loom.com/share/c50e48150c864f1893f5c4d73fe366b1
+- Funcionalidad Extra: https://www.loom.com/share/1259841f1f5849aab9bbb32ccb4f090e

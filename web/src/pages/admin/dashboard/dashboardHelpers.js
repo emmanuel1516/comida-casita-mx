@@ -1,4 +1,4 @@
-export const DASHBOARD_POLLING_INTERVAL_MS = 10000;
+export const DASHBOARD_POLLING_INTERVAL_MS = 60000;
 
 export const STATUS_LABELS = {
   pendiente: "Pendiente",
